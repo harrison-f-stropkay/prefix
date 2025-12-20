@@ -93,3 +93,11 @@ Docs: `docs/experiments.md`, `docs/checkpointing.md`, `docs/reference.md`.
 ├── data/                      # local datasets/artifacts (gitignored)
 └── runs/                      # training outputs (gitignored)
 ```
+
+## Replication
+
+### Data
+
+```bash
+uv run scripts/download_fineweb_edu.py
+```
