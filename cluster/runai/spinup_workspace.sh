@@ -9,7 +9,7 @@ runai workspace submit prefix \
   --node-pools dgx-h100-80gb \
   --node-pools dgx-h100-80gb-alt \
   --node-pools dgx-h100-80gb-alt2 \
-  --node-pools abyss-hgx-h100-80gb \
+  # --node-pools abyss-hgx-h100-80gb \
   # --node-pools aos-a40-48gb \
   # --node-pools itsd-general \
   # --node-pools default \

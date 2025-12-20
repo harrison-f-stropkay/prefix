@@ -1,0 +1,10 @@
+# Single-node, 8×GPU training defaults.
+distributed:
+  world_size: 8
+  backend: nccl
+checkpointing:
+  enabled: true
+  save_every_steps: 1000
+  keep_last: 3
+seed: 0
+

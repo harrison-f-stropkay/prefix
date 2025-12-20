@@ -1,0 +1,12 @@
+# FineWeb-Edu (ASCII-only) -> packed 2048 sequences.
+# Note: HuggingFace `datasets.load_dataset` uses `name=` for the dataset config (e.g. sample sizes or sources),
+# and `split=` for the split (usually "train"). Set both explicitly.
+dataset:
+  hf_id: HuggingFaceFW/fineweb-edu
+  # Examples: "sample-10BT", "sample-100BT", "CC-MAIN-2024-10"
+  name: sample-100BT
+  split: train
+text:
+  ascii_only: true
+packing:
+  sequence_length: 2048

@@ -1,0 +1,4 @@
+type: prefix_softmax
+normalized: true
+tau: 0.5
+
