@@ -6,7 +6,7 @@ from shutil import rmtree
 import numpy as np
 import yaml
 from datasets import load_dataset
-from streaming.base import MDSWriter
+from streaming import MDSWriter
 from transformers import AutoTokenizer
 
 
