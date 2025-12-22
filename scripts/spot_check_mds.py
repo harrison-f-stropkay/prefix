@@ -26,31 +26,38 @@ def spot_check_mds(
     num_batches: int = 10,
     batch_size: int = 8,
     n_workers: int = 4,
-    seen_element: int = 3,
 ) -> None:
     output_dir = Path(config["dir"])
     if not output_dir.exists():
         raise FileNotFoundError(f"MDS directory not found: {output_dir}")
+
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer"]["hf_id"], use_fast=True)
-    dataset = StreamingDataset(local=str(output_dir))
+
+    dataset = StreamingDataset(
+        local=str(output_dir),
+        shuffle=True,
+        batch_size=batch_size,
+    )
+
     dataloader = StreamingDataLoader(
         dataset=dataset,
         batch_size=batch_size,
-        shuffle=True,
         num_workers=n_workers,
     )
+
     print("state_dict: ", dataloader.state_dict())
 
+    it = iter(dataloader)
     for batch_idx in range(num_batches):
         try:
-            sample = dataloader[batch_idx]
+            sample = next(it)
         except StopIteration:
             logging.warning("MDS ended after %d batches", batch_idx)
             break
-        # Get the nth element in the batch
-        ids = sample["input_ids"][seen_element]
+
+        ids = sample["input_ids"][sample["input_ids"].shape[0] - 1]
         text = tokenizer.decode(ids, skip_special_tokens=False)
-        print(f"--- example {batch_idx} ---")
+        print(f"--- last example in the batch {batch_idx} ---")
         print(text)
         print()
 
