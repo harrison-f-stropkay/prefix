@@ -59,9 +59,12 @@ def create_mds(config: dict) -> None:
         raise ValueError("Dataset must include a 'text' column.")
 
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_config["hf_id"], use_fast=True)
-    ascii_only = bool(text_config.get("ascii_only", False))
-    num_proc = max(1, (os.cpu_count() or 1) - 1)
-    batch_size = 1000
+    assert tokenizer.eos_token_id is not None
+
+    ascii_only = bool(text_config["ascii_only"])
+    num_proc = int(text_config["num_proc"])
+    batch_size = int(text_config["batch_size"])
+    eos_id = tokenizer.eos_token_id
 
     def tokenize_batch(batch: dict) -> dict:
         texts = batch["text"]
@@ -73,9 +76,7 @@ def create_mds(config: dict) -> None:
             padding=False,
             truncation=False,
         )
-        eos_id = tokenizer.eos_token_id
-        if eos_id is not None:
-            tokenized["input_ids"] = [ids + [eos_id] for ids in tokenized["input_ids"]]
+        tokenized["input_ids"] = [ids + [eos_id] for ids in tokenized["input_ids"]]
         return {"input_ids": tokenized["input_ids"]}
 
     remove_columns = [col for col in dataset.column_names if col != "text"]

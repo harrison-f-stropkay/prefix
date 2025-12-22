@@ -94,10 +94,11 @@ Docs: `docs/experiments.md`, `docs/checkpointing.md`, `docs/reference.md`.
 └── runs/                      # training outputs (gitignored)
 ```
 
-## Replication
+## Reproducability
 
 ### Data
 
 ```bash
-uv run scripts/download_fineweb_edu.py
+uv run python scripts/download_fineweb_edu.py --data-config ./configs/data/fineweb_edu_ascii_pack2048.yaml
+uv run python scripts/create_mds.py --data-config ./configs/data/fineweb_edu_ascii_pack2048.yaml
 ```
