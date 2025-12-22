@@ -40,11 +40,10 @@ def spot_check_mds(
         num_workers=n_workers,
     )
     print("state_dict: ", dataloader.state_dict())
-    it = iter(dataloader)
 
     for batch_idx in range(num_batches):
         try:
-            sample = next(it)
+            sample = dataloader[batch_idx]
         except StopIteration:
             logging.warning("MDS ended after %d batches", batch_idx)
             break
