@@ -6,7 +6,10 @@ dataset:
   # Examples: "sample-10BT", "sample-100BT", "CC-MAIN-2024-10"
   name: sample-100BT
   split: train
+tokenizer:
+  hf_id: meta-llama/Meta-Llama-3-8B
 text:
   ascii_only: true
 packing:
   sequence_length: 2048
+dir: ./data/mds/

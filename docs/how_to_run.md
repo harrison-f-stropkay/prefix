@@ -11,6 +11,7 @@ This repo uses `uv` to manage a local virtualenv in `.venv/`.
 ## Setup
 
 - Create/update the environment (dev tools included): `uv sync --extra dev`
+- Install the project in editable mode for imports: `uv pip install -e .`
 - Run commands without activating the venv: `uv run <command>`
 
 Examples:
