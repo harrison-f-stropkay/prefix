@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 import yaml
-from streaming import Reader
+from streaming.base.format import Reader
 from transformers import AutoTokenizer
 
 
