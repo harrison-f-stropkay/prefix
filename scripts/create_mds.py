@@ -55,6 +55,7 @@ def create_mds(config: dict) -> None:
         split=dataset_config["split"],
         cache_dir="./data/",
     )
+    dataset = dataset.select(1000)  # TODO remove
     if "text" not in dataset.column_names:
         raise ValueError("Dataset must include a 'text' column.")
 
@@ -100,7 +101,7 @@ def create_mds(config: dict) -> None:
     )
 
     written = 0
-    with MDSWriter(output_dir, columns={"input_ids": "int32"}) as writer:
+    with MDSWriter(out=str(output_dir), columns={"input_ids": "int32"}) as writer:
         for packed in pack_token_ids(tokenized, packing_config["sequence_length"]):
             writer.write({"input_ids": np.asarray(packed, dtype=np.int32)})
             written += 1
