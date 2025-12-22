@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 import yaml
-from streaming.base.format import Reader
+from streaming import StreamingDataLoader, StreamingDataset
 from transformers import AutoTokenizer
 
 
@@ -21,11 +21,26 @@ def load_data_config(config_path: Path) -> dict:
     return yaml.safe_load(config_path.read_text(encoding="utf-8"))
 
 
-def spot_check_mds(config: dict, num_batches: int = 10) -> None:
+def spot_check_mds(
+    config: dict,
+    num_batches: int = 10,
+    batch_size: int = 8,
+    n_workers: int = 4,
+    seen_element: int = 3,
+) -> None:
     output_dir = Path(config["dir"])
+    if not output_dir.exists():
+        raise FileNotFoundError(f"MDS directory not found: {output_dir}")
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer"]["hf_id"], use_fast=True)
-    reader = Reader(str(output_dir))
-    it = iter(reader)
+    dataset = StreamingDataset(local=str(output_dir))
+    dataloader = StreamingDataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=n_workers,
+    )
+    print("state_dict: ", dataloader.state_dict())
+    it = iter(dataloader)
 
     for batch_idx in range(num_batches):
         try:
@@ -33,10 +48,10 @@ def spot_check_mds(config: dict, num_batches: int = 10) -> None:
         except StopIteration:
             logging.warning("MDS ended after %d batches", batch_idx)
             break
-        input_ids = sample["input_ids"]
-        ids = input_ids.tolist() if hasattr(input_ids, "tolist") else list(input_ids)
+        # Get the nth element in the batch
+        ids = sample["input_ids"][seen_element]
         text = tokenizer.decode(ids, skip_special_tokens=False)
-        print(f"--- batch {batch_idx} ---")
+        print(f"--- example {batch_idx} ---")
         print(text)
         print()
 
