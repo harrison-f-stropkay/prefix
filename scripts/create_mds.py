@@ -57,7 +57,6 @@ def create_mds(config: dict) -> None:
         split=dataset_config["split"],
         cache_dir="./data/",
     )
-    dataset = dataset.select(range(1000))  # TODO remove
     if "text" not in dataset.column_names:
         raise ValueError("Dataset must include a 'text' column.")
 
