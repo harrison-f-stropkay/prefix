@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-from prefix.objectives import decode_token, load_tokenizer
+from prefix.objectives import load_tokenizer
 
 
 class Args(argparse.Namespace):
