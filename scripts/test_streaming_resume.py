@@ -6,6 +6,7 @@ import torch
 import yaml
 from streaming import StreamingDataLoader, StreamingDataset
 
+logger = logging.getLogger(__name__)
 
 class Args(argparse.Namespace):
     data_config: Path
@@ -44,6 +45,17 @@ def build_dataloader(output_dir: Path, batch_size: int, num_workers: int) -> Str
     )
 
 
+def shutdown_dataloader(dataloader: StreamingDataLoader) -> None:
+    shutdown = getattr(dataloader, "shutdown", None)
+    if callable(shutdown):
+        shutdown()
+    dataset = getattr(dataloader, "dataset", None)
+    if dataset is not None:
+        close = getattr(dataset, "close", None)
+        if callable(close):
+            close()
+
+
 def main() -> None:
     args = parse_args()
     config = load_data_config(args.data_config)
@@ -52,34 +64,37 @@ def main() -> None:
         raise FileNotFoundError(f"MDS directory not found: {output_dir}")
 
     dataloader = build_dataloader(output_dir, args.batch_size, args.num_workers)
-    data_iter = iter(dataloader)
+    try:
+        data_iter = iter(dataloader)
 
-    next(data_iter)
-    next(data_iter)
-    torch.save(dataloader.state_dict(), args.state_path)
+        next(data_iter)
+        next(data_iter)
+        torch.save(dataloader.state_dict(), args.state_path)
 
-    b3 = next(data_iter)
-    b4 = next(data_iter)
+        b3 = next(data_iter)
+        b4 = next(data_iter)
 
-    original_3 = batch_fingerprint(b3)
-    original_4 = batch_fingerprint(b4)
-
-    del data_iter, dataloader
+        original_3 = batch_fingerprint(b3)
+        original_4 = batch_fingerprint(b4)
+    finally:
+        shutdown_dataloader(dataloader)
 
     dataloader = build_dataloader(output_dir, args.batch_size, args.num_workers)
+    try:
+        logger.info("Loading dataset state...")
+        dataloader.load_state_dict(torch.load(args.state_path))
+        data_iter = iter(dataloader)
 
-    logging.info("Loading dataset state...")
-    dataloader.load_state_dict(torch.load(args.state_path))
-    data_iter = iter(dataloader)
+        resumed_3 = batch_fingerprint(next(data_iter))
+        resumed_4 = batch_fingerprint(next(data_iter))
 
-    resumed_3 = batch_fingerprint(next(data_iter))
-    resumed_4 = batch_fingerprint(next(data_iter))
-
-    assert resumed_3 == original_3, f"batch3 mismatch: orig={original_3} resumed={resumed_3}"
-    assert resumed_4 == original_4, f"batch4 mismatch: orig={original_4} resumed={resumed_4}"
-    logging.info("RESUME_OK: True")
+        assert resumed_3 == original_3, f"batch3 mismatch: orig={original_3} resumed={resumed_3}"
+        assert resumed_4 == original_4, f"batch4 mismatch: orig={original_4} resumed={resumed_4}"
+        logger.info("RESUME_OK: True")
+    finally:
+        shutdown_dataloader(dataloader)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", force=True)
     main()
