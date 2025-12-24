@@ -18,7 +18,7 @@ def parse_args() -> Args:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-config", required=True, type=Path)
     parser.add_argument("--batch-size", type=int, default=8)
-    parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--state-path", type=Path, default=Path("/tmp/streaming_dl_state.pt"))
     return parser.parse_args(namespace=Args())
 
