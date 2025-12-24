@@ -75,7 +75,7 @@ def main() -> None:
 
     assert resumed_3 == original_3, f"batch3 mismatch: orig={original_3} resumed={resumed_3}"
     assert resumed_4 == original_4, f"batch4 mismatch: orig={original_4} resumed={resumed_4}"
-    print("RESUME_OK: True")
+    logging.info("RESUME_OK: True")
 
 
 if __name__ == "__main__":
