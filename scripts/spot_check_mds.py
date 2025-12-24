@@ -40,29 +40,16 @@ def spot_check_mds(
         batch_size=1,
     )
 
-    print(len(dataset))
+    print("N_SAMPLES: ", len(dataset))
 
-    # dataloader = StreamingDataLoader(
-    #     dataset=dataset,
-    #     batch_size=batch_size,
-    #     num_workers=n_workers,
-    # )
+    sample = dataset[9_999_999]
 
-    # print("state_dict: ", dataloader.state_dict())
-
-    # it = iter(dataloader)
-    # for batch_idx in range(num_batches):
-    #     try:
-    #         sample = next(it)
-    #     except StopIteration:
-    #         logging.warning("MDS ended after %d batches", batch_idx)
-    #         break
-
-    #     ids = sample["input_ids"][sample["input_ids"].shape[0] - 1]
-    #     text = tokenizer.decode(ids, skip_special_tokens=False)
-    #     print(f"--- last example in the batch {batch_idx} ---")
-    #     print(text)
-    #     print()
+    decoded = tokenizer.decode(
+        sample["input_ids"].tolist(),
+        skip_special_tokens=False,
+        clean_up_tokenization_spaces=False,
+    )
+    print(decoded)
 
 
 if __name__ == "__main__":
