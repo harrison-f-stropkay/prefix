@@ -67,6 +67,8 @@ def main() -> None:
     del data_iter, dataloader
 
     dataloader = build_dataloader(output_dir, args.batch_size, args.num_workers)
+
+    logging.info("Loading dataset state...")
     dataloader.load_state_dict(torch.load(args.state_path))
     data_iter = iter(dataloader)
 
