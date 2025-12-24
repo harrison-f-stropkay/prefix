@@ -6,5 +6,5 @@ checkpointing:
   enabled: true
   save_every_steps: 1000
   keep_last: 3
+batch_size: 16
 seed: 0
-
