@@ -39,8 +39,8 @@ def build_dataloader(output_dir: Path, batch_size: int, num_workers: int) -> Str
     )
     return StreamingDataLoader(
         dataset,
-        batch_size=batch_size,
         num_workers=num_workers,
+        batch_size=batch_size,
     )
 
 
