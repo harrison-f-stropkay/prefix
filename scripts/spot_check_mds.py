@@ -28,13 +28,12 @@ dataset = StreamingDataset(
 
 print(len(dataset))
 
-# dataloader = StreamingDataLoader(
-#     dataset=dataset,
-#     batch_size=batch_size,
-#     num_workers=n_workers,
-# )
+dataloader = StreamingDataLoader(
+    dataset=dataset,
+    batch_size=batch_size,
+)
 
-# print("state_dict: ", dataloader.state_dict())
+print("state_dict: ", dataloader.state_dict())
 
 # it = iter(dataloader)
 # for batch_idx in range(num_batches):
