@@ -12,9 +12,9 @@ Run matrix: 1× CE baseline + 2 prefix-aware families × 6 temperatures = 13 run
 
 Keep run names stable so a restarted job can resume into the same directory:
 
-- `ce_seed0`
-- `prefix_unnormalized_tau_0p1_seed0`
-- `prefix_normalized_tau_2p0_seed0`
+- `ce`
+- `prefix_unnormalized_tau_0p1`
+- `prefix_normalized_tau_2p0`
 
 Outputs are written to the PVC under:
 

@@ -31,6 +31,7 @@ print(len(dataset))
 dataloader = StreamingDataLoader(
     dataset=dataset,
     batch_size=batch_size,
+    pin_memory=True,
 )
 
 print("state_dict: ", dataloader.state_dict())

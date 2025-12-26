@@ -1,5 +1,5 @@
 [run]
-name = "prefix_unnormalized_tau_2p0_seed0"
+name = "prefix_unnormalized_tau_2p0"
 
 [configs]
 data = "configs/data/fineweb_edu_ascii_pack2048.yaml"

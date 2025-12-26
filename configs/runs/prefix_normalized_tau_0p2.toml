@@ -1,10 +1,10 @@
 [run]
-name = "prefix_normalized_tau_1p0_seed0"
+name = "prefix_normalized_tau_0p2"
 
 [configs]
 data = "configs/data/fineweb_edu_ascii_pack2048.yaml"
 model = "configs/model/llama3_500m.yaml"
 train = "configs/train/single_node_8gpu.yaml"
 eval = "configs/eval/default.yaml"
-objective = "configs/objective/prefix_normalized_tau_1p0.yaml"
+objective = "configs/objective/prefix_normalized_tau_0p2.yaml"
 

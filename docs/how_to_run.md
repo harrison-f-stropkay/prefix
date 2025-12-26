@@ -37,7 +37,7 @@ Spin up a dev workspace (Jupyter, interactive debugging):
 
 Submit a training run:
 
-- `cluster/runai/submit_train.sh configs/runs/ce_seed0.toml`
+- `cluster/runai/submit_train.sh configs/runs/ce.toml`
 
 ### Outputs + Resume
 
