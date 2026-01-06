@@ -7,6 +7,7 @@ requires-python = "==3.12.*"
 dependencies = [
   "datasets>=2.19",
   "huggingface-hub>=0.36.0",
+  "lm-eval[hf]>=0.4.9.2",
   "matplotlib>=3.8",
   "mosaicml-streaming>=0.9",
   "pandas>=2.2",
