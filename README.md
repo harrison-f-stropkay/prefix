@@ -111,41 +111,32 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 
 ## Directory Structure
 
-Decisive layout for this project (single dataset, multiple objectives, single-node 8×GPU). Keep training code importable, keep configs explicit, and keep artifacts out of git.
-
-Conventions and reproducibility notes: `docs/project_conventions.md`.
-Quickstart commands: `docs/how_to_run.md`.
-Docs: `docs/experiments.md`, `docs/checkpointing.md`, `docs/reference.md`.
-
 ```text
 .
 ├── src/
-│   └── prefix/                # future Python package (no code yet)
-├── configs/                   # YAML configs (checked in)
-│   ├── data/                  # dataset location + packing params
-│   ├── eval/                  # lm-eval-harness task sets
-│   ├── model/                 # Llama-3–style model sizes/hparams
-│   ├── objective/             # CE + prefix-aware objective variants + tau sweep
-│   ├── runs/                  # top-level run specs (TOML)
-│   └── train/                 # optimizer/schedule/ddp/checkpoint params
-├── scripts/                   # runnable entrypoints (no code yet)
+│   └── prefix/
+├── configs/
+│   ├── data/
+│   ├── eval/
+│   ├── model/
+│   ├── objective/
+│   ├── runs/
+│   └── train/
+├── scripts/
 ├── cluster/
-│   └── runai/                 # Run:ai submission helpers
-│       ├── spinup_workspace.sh # dev workspace (Jupyter, interactive debugging)
-│       └── submit_train.sh     # training runs (clone repo in job)
-├── docs/                      # project notes (see `docs/how_to_run.md`)
-├── data/                      # local datasets/artifacts (gitignored)
-└── runs/                      # training outputs (gitignored)
+│   └── runai/
+│       ├── spinup_workspace.sh
+│       └── submit_train.sh
+├── docs/
+├── data/
+└── runs/
 ```
-
-````
 
 ## Reproducability
 
-### Data
+### Data:
 
 ```bash
 uv run python scripts/download_fineweb_edu.py --data-config configs/data/fineweb_edu_pack2048.yaml
 uv run python scripts/create_mds.py --data-config configs/data/fineweb_edu_pack2048.yaml
 ```
-````
