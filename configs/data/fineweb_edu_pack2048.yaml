@@ -1,0 +1,12 @@
+dataset:
+  hf_id: HuggingFaceFW/fineweb-edu
+  name: sample-100BT  # As opposed to "sample-10BT", "sample-100BT", or "CC-MAIN-2024-10"
+  split: train
+tokenizer:
+  hf_id: meta-llama/Meta-Llama-3-8B
+text:
+  num_proc: 128
+  batch_size: 2048
+packing:
+  sequence_length: 2048
+dir: ./data/mds/

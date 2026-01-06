@@ -1,10 +1,6 @@
-# Agent Notes
-
-This file exists to help coding agents make safe, consistent changes in this repo.
-
 ## Quick Orientation
 
-- Purpose: prefix-aware label smoothing experiments for Llama-3–style LM training (see `README.md`).
+- Repo overview: prefix-aware label smoothing experiments for Llama-3–style LM training (see `README.md`).
 - Reusable logic lives in `src/prefix/`; keep `scripts/` as thin entrypoints.
 - Config policy:
   - Component configs are YAML under `configs/{data,model,train,objective,eval}/`.

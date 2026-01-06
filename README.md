@@ -2,68 +2,112 @@
 
 This repository tests whether training a Llama-3–style model (~500M parameters) with a custom **prefix-aware** label-smoothing objective can improve downstream performance.
 
-Instead of distributing label-smoothing mass over all incorrect tokens, we assign it only to tokens whose decoded text is a **prefix** of the correct token’s decoded text (including the correct token), weighted toward longer prefixes. Example: if the gold token is “personality”, assign some mass to “person”.
+Label smoothing is a regularization technique that replaces hard one-hot labels with softer targets by putting $1-\varepsilon$ probability on the correct class and spreading the remaining $\varepsilon$ evenly across the other $K-1$ classes (each gets $\varepsilon/(K-1)$). This technique often improves generalization in classification tasks.
+
+In this repo, instead of distributing label-smoothing mass over all incorrect tokens, we assign it only to tokens whose decoded text is a **prefix** of the correct token’s decoded text, weighted toward longer prefixes. Example: if the gold token is “personality”, assign some mass to “person”.
 
 We hypothesize that relative to traditional label smoothing, this approach will provide the model with stronger signal about the characters composing each token, ameliorating the canonical “strawberry” problem.
 
 ## Experimental Design
 
-We compare three families of training objectives. All training runs are identical except for the training objective.
+We sample our data from FineWeb-Edu, found [here](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu). Specifically, we gather data from the 100b token sample (`sample/100BT`), and we train our models to 20b tokens. To detect prefixes and string lengths, we use Python's `startswith` and `len` functions.
 
-We sample our data from FineWeb-Edu, found [here](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu). Specifically, we gather data from the 100b token sample (`sample/100BT`), and we train our models to 20b tokens.
-To make prefix detection trivial, we remove all non-ASCII characters.
+All training runs are identical except for the training objective. We compare the following families of training objectives.
 
-### 1. Standard Cross-Entropy
+### 1. Standard One-hot
 
-Typical one-hot target.
-
-### 2. Prefix-Softmax (Unnormalized)
-
-Let:
-
-- $y$ = gold token
-- $s = \text{decode}(y)$ = token’s ASCII string
-- $S$ = set of all vocabulary tokens whose decoded ASCII text is a **prefix** of $s$, including $s$ itself
-- $t$ = any token
+Let $V$ be the vocabulary and let $y_t \in V$ denote the gold next token at position $t$.  
+The target distribution is the one-hot distribution
 
 $$
-\text{score}(t)=
+q_i = \mathbf{1}[i = y_t].
+$$
+
+### 2. Standard Label Smoothing
+
+Let $\varepsilon = 0.1$.  
+The smoothed target distribution is
+
+$$
+q_i =
 \begin{cases}
-\text{len}(t), & \text{if } t \in S,\\
-0, & \text{otherwise}.
+1 - \varepsilon & i = y_t \\
+\varepsilon / (|V| - 1) & i \neq y_t .
 \end{cases}
 $$
 
-To compute our target probability distribution, we take the softmax with temperature $\tau$ over the scores.
+### 3. Prefix-aware Label Smoothing (Simple)
 
-### 3. Prefix-Softmax (Normalized)
-
-Identical to the unnormalized case, except that
+Let $\varepsilon = 0.1$. Let $y_t$ be the gold next token and $s=\text{decode}(y_t)$ its decoded string. Define the set of **proper-prefix tokens**
 
 $$
-\text{score}(t)=
+P(s)=\{i:\ \text{decode}(i)\text{ is a strict prefix of } s\}.
+$$
+
+We define the target distribution $q$ in two cases:
+
+- If $P(s)=\emptyset$, we use the standard one-hot target: $q_i=\mathbf{1}[i=y_t]$.
+- If $P(s)\neq\emptyset$,
+  $$
+  q_i =
+  \begin{cases}
+  1-\varepsilon & i=y_t \\
+  \varepsilon/|P(s)| & i\in P(s) \\
+  0 & \text{otherwise}.
+  \end{cases}
+  $$
+
+### 4. Prefix-aware Label Smoothing (Softmax)
+
+Let $\varepsilon \in \{0.1, 1\}$. Let $R(s)$ be the set of prefixes of $s$ (note that $R$ differs from $P$ since $R$ includes $s$). Define a softmax over prefixes weighted by character length. Let $L_i = |\text{decode}(i)|$ for $i\in P(s)$ and
+
+$$
+w_i=\frac{\exp(L_i)}{\sum_{j\in P(s)}\exp(L_j)}, \qquad
+q_i =
 \begin{cases}
-\text{len}(t) / \text{len}(s), & \text{if } t \in S,\\
-0, & \text{otherwise}.
+1-\varepsilon & i=y_t \\
+\varepsilon\, w_i & i\in P(s) \\
+0 & \text{otherwise}.
 \end{cases}
 $$
 
-Again, to compute our target probability distribution, we take the softmax with temperature $\tau$ over the scores.
+Note that when $\varepsilon = 1$, the target distribution is exactly the softmax over prefix lengths.
 
-### Temperature Sweep
+### 5. Prefix-aware Label Smoothing (Softmax, Normalized)
+
+Same as (4), except the softmax uses normalized prefix length. Let
+
+$$
+\tilde L_i=\frac{|\text{decode}(i)|}{|\text{decode}(y_t)|},\qquad
+w_i=\frac{\exp(\tilde L_i)}{\sum_{j\in P(s)}\exp(\tilde L_j)}.
+$$
+
+Then $q$ is defined exactly as in (4) with these weights:
+
+$$
+q_i =
+\begin{cases}
+1-\varepsilon & i=y_t \\
+\varepsilon\, w_i & i\in P(s) \\
+0 & \text{otherwise}.
+\end{cases}
+$$
+
+<!-- ### Temperature Sweep
 
 We evaluate the prefix-aware objectives under the following temperatures:
 
 $\tau \in \{0.05,\ 0.1,\ 0.2,\ 0.5,\ 1.0,\ 2.0 \}$
+ -->
 
 ### Evaluation
 
-We evaluate trained models with EleutherAI’s `lm-eval-harness` on:
+Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-harness` on:
 
-- HellaSwag
-- PIQA
-- Winogrande-debiased
-- ARC-Easy
+- `piqa`
+- `winogrande`
+- `arc_easy`
+- `hellaswag`
 
 ## Directory Structure
 
@@ -94,6 +138,8 @@ Docs: `docs/experiments.md`, `docs/checkpointing.md`, `docs/reference.md`.
 └── runs/                      # training outputs (gitignored)
 ```
 
+````
+
 ## Reproducability
 
 ### Data
@@ -102,3 +148,4 @@ Docs: `docs/experiments.md`, `docs/checkpointing.md`, `docs/reference.md`.
 uv run python scripts/download_fineweb_edu.py --data-config ./configs/data/fineweb_edu_ascii_pack2048.yaml
 uv run python scripts/create_mds.py --data-config ./configs/data/fineweb_edu_ascii_pack2048.yaml
 ```
+````

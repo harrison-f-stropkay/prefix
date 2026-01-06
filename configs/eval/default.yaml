@@ -1,8 +1,7 @@
 # lm-eval-harness task set used for all runs.
 lm_eval:
   tasks:
-    - hellaswag
-    - piqa
-    - winogrande
-    - arc_easy
-
+    - `piqa`
+    - `winogrande`
+    - `arc_easy`
+    - `hellaswag`
