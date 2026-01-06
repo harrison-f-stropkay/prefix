@@ -4,7 +4,7 @@ dataset:
   split: train
 tokenizer:
   hf_id: meta-llama/Meta-Llama-3-8B
-text:
+text_processing:
   num_proc: 128
   batch_size: 2048
 packing:

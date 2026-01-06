@@ -24,10 +24,6 @@ def load_data_config(config_path: Path) -> dict:
     return yaml.safe_load(config_path.read_text(encoding="utf-8"))
 
 
-def ascii_only_batch(texts: list[str]) -> list[str]:
-    return [text.encode("ascii", "ignore").decode("ascii") for text in texts]
-
-
 def pack_token_ids(examples, sequence_length: int):
     buffer: list[int] = []
     start = 0
@@ -46,7 +42,7 @@ def pack_token_ids(examples, sequence_length: int):
 def create_mds(config: dict) -> None:
     dataset_config = config["dataset"]
     tokenizer_config = config["tokenizer"]
-    text_config = config["text"]
+    text_config = config["text_processing"]
     packing_config = config["packing"]
 
     seq_len = int(packing_config["sequence_length"])
@@ -65,14 +61,11 @@ def create_mds(config: dict) -> None:
         raise ValueError("Tokenizer must have an eos_token_id.")
     eos_id = tokenizer.eos_token_id
 
-    ascii_only = bool(text_config["ascii_only"])
     num_proc = int(text_config["num_proc"])
     batch_size = int(text_config["batch_size"])
 
     def tokenize_batch(batch: dict) -> dict:
         texts = batch["text"]
-        if ascii_only:
-            texts = ascii_only_batch(texts)
         tokenized = tokenizer(
             texts,
             add_special_tokens=False,
@@ -93,15 +86,14 @@ def create_mds(config: dict) -> None:
 
     output_dir = Path(config["dir"])
     if output_dir.exists():
-        rmtree(output_dir)
+        if any(output_dir.iterdir()):
+            raise FileExistsError(f"Output dir {output_dir} exists and is not empty.")
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.info(
-        "Writing MDS to %s (sequence_length=%d, num_proc=%d, batch_size=%d)",
-        output_dir,
-        seq_len,
-        num_proc,
-        batch_size,
+        f"Writing MDS to {output_dir} (sequence_length={seq_len}, "
+        f"num_proc={num_proc}, batch_size={batch_size})"
     )
 
     written = 0
@@ -112,10 +104,10 @@ def create_mds(config: dict) -> None:
             assert len(packed) == seq_len, f"Packed len {len(packed)} != seq_len {seq_len}"
             writer.write({"input_ids": np.asarray(packed).astype(np.int32)})
             written += 1
-            if written % 1000 == 0:
-                logging.info("Wrote %d packed sequences", written)
+            if written % 10000 == 0:
+                logging.info(f"Wrote {written} packed sequences")
 
-    logging.info("Finished writing %d packed sequences", written)
+    logging.info(f"Finished writing {written} packed sequences")
 
 
 if __name__ == "__main__":

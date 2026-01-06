@@ -9,6 +9,7 @@ from streaming import StreamingDataLoader, StreamingDataset
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
 class Args(argparse.Namespace):
     data_config: Path
     batch_size: int
@@ -62,7 +63,12 @@ def main() -> None:
     config = load_data_config(args.data_config)
     output_dir = Path(config["dir"])
     logger.info("Using MDS dir: %s", output_dir)
-    logger.info("batch_size=%d num_workers=%d state_path=%s", args.batch_size, args.num_workers, args.state_path)
+    logger.info(
+        "batch_size=%d num_workers=%d state_path=%s",
+        args.batch_size,
+        args.num_workers,
+        args.state_path,
+    )
     if not output_dir.exists():
         raise FileNotFoundError(f"MDS directory not found: {output_dir}")
 
@@ -99,5 +105,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", force=True)
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", force=True
+    )
     main()
