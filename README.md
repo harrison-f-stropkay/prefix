@@ -135,3 +135,9 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 uv run python scripts/download_fineweb_edu.py --run-config configs/ce_seed_0.yaml
 uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml
 ```
+
+## Dry run:
+
+```bash
+bash runai/submit_train.sh --dry-run configs/ce_seed_0.yaml
+```
