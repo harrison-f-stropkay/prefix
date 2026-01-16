@@ -55,6 +55,7 @@ git checkout main
 git reset --hard origin/main
 
 uv sync --frozen
+uv pip install -e .
 
 echo "[run] starting ${mode}"
 uv run python -m "${module}" \
