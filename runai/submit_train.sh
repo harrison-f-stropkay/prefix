@@ -38,10 +38,12 @@ if [[ "$dry_run" == "true" ]]; then
   mode="dry-run"
   module="prefix.dry_run"
   job_name="prefix-dry-run-${run_slug}"
+  launcher="torchrun --nproc_per_node=8"
 else
   mode="train"
   module="prefix.train"
   job_name="prefix-train-${run_slug}"
+  launcher="python"
 fi
 
 inner_cmd=$(
@@ -63,7 +65,7 @@ if [[ "${run_id}" == tiny* ]]; then
 fi
 
 echo "[run] starting ${mode}"
-uv run python -m "${module}" \
+uv run ${launcher} -m "${module}" \
   --run-config "${run_config}" \
   2>&1
 EOF
