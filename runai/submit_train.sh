@@ -75,8 +75,8 @@ exec runai training standard submit "$job_name" \
   --project "strophf1" \
   --image "docker-public-local.artifactory.jhuapl.edu/itsdai/runai/idp-fips-ngc2505pytorch:0.1" \
   --gpu-devices-request 8 \
-  --cpu-core-request 4 \
-  --cpu-memory-request 20G \
+  --cpu-core-request 16 \
+  --cpu-memory-request 64G \
   --existing-pvc "claimname=prefix-data-5tib-project-ka8vj,path=/home/apluser" \
   --node-pools dgx-h100-80gb \
   --node-pools dgx-h100-80gb-alt \
