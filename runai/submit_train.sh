@@ -50,6 +50,7 @@ set -euo pipefail
 
 cd "${repo_root}"
 
+git remote set-url origin "https://github.com/harrison-f-stropkay/prefix.git"
 git fetch origin main
 git checkout main
 git reset --hard origin/main
