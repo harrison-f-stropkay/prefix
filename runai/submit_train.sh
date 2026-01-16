@@ -32,7 +32,7 @@ fi
 
 project="strophf1"
 image="docker-public-local.artifactory.jhuapl.edu/itsdai/runai/idp-fips-ngc2505pytorch:0.1"
-pvc_claim="prefix-data-project-zhncd"
+pvc_claim="prefix-data-5tib-project-ka8vj"
 pvc_path="/home/apluser"
 repo_root="${pvc_path}/prefix"
 run_id="$(basename "${run_config%.*}")"
