@@ -57,6 +57,10 @@ set -euo pipefail
 
 cd "${repo_root}"
 
+git fetch origin main
+git checkout main
+git reset --hard origin/main
+
 uv sync --frozen
 
 run_name="\$(uv run python - "${run_config}" <<'PY'
