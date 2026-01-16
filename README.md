@@ -4,13 +4,13 @@ This repository tests whether training a Llama-3–style model (~500M parameters
 
 Label smoothing is a regularization technique that replaces hard one-hot labels with softer targets by putting $1-\varepsilon$ probability on the correct class and spreading the remaining $\varepsilon$ evenly across the other $K-1$ classes (each gets $\varepsilon/(K-1)$). This technique often improves generalization in classification tasks.
 
-In this repo, instead of distributing label-smoothing mass over all incorrect tokens, we assign it only to tokens whose decoded text is a **prefix** of the correct token’s decoded text, weighted toward longer prefixes. Example: if the gold token is “personality”, assign some mass to “person”.
+In this repo, we test teh following idea: instead of distributing label-smoothing mass over all incorrect tokens, assign label-smoothing mass only to tokens whose decoded text is a **prefix** of the correct token. Example: if the gold token is “personality”, assign some mass to “person”. In some sense, "person" is correct, since a generative model could produce "ality" in subsequent decoding steps, yielding the true text.
 
-We hypothesize that relative to traditional label smoothing, this approach will provide the model with stronger signal about the characters composing each token, ameliorating the canonical “strawberry” problem.
+We hypothesize that relative to traditional label smoothing, this approach will provide the model with stronger signal about the characters composing each token, potentially ameliorating the canonical “strawberry” problem.
 
 ## Experimental Design
 
-We sample our data from FineWeb-Edu, found [here](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu). Specifically, we gather data from the 100b token sample (`sample/100BT`), and we train our models to 20b tokens. To detect prefixes and string lengths, we use Python's `startswith` and `len` functions.
+We sample our data from FineWeb-Edu, found [here](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu). Specifically, we gather data from the 100b token sample (`sample/100BT`), and we train our models to 20b tokens. To detect prefixes and string lengths, we operate in byte-level token space (i.e., tokenizer vocab pieces) to avoid lossy UTF-8 decoding.
 
 All training runs are identical except for the training objective. We compare the following families of training objectives.
 
@@ -38,10 +38,10 @@ $$
 
 ### 3. Prefix-aware Label Smoothing (Simple)
 
-Let $\varepsilon = 0.1$. Let $y_t$ be the gold next token and $s=\text{decode}(y_t)$ its decoded string. Define the set of **proper-prefix tokens**
+Let $\varepsilon = 0.1$. Let $y_t$ be the gold next token and $s=\text{token}(y_t)$ its byte-level token string. Define the set of **proper-prefix tokens**
 
 $$
-P(s)=\{i:\ \text{decode}(i)\text{ is a strict prefix of } s\}.
+P(s)=\{i:\ \text{token}(i)\text{ is a strict prefix of } s\}.
 $$
 
 We define the target distribution $q$ in two cases:
@@ -59,7 +59,7 @@ We define the target distribution $q$ in two cases:
 
 ### 4. Prefix-aware Label Smoothing (Softmax)
 
-Let $\varepsilon \in \{0.1, 1\}$. Let $R(s)$ be the set of prefixes of $s$ (note that $R$ differs from $P$ since $R$ includes $s$). Define a softmax over prefixes weighted by character length. Let $L_i = |\text{decode}(i)|$ for $i\in P(s)$ and
+Let $\varepsilon \in \{0.1, 1\}$. Let $R(s)$ be the set of prefixes of $s$ (note that $R$ differs from $P$ since $R$ includes $s$). Define a softmax over prefixes weighted by character length. Let $L_i = |\text{token}(i)|$ for $i\in P(s)$ and
 
 $$
 w_i=\frac{\exp(L_i)}{\sum_{j\in P(s)}\exp(L_j)}, \qquad
@@ -78,7 +78,7 @@ Note that when $\varepsilon = 1$, the target distribution is exactly the softmax
 Same as (4), except the softmax uses normalized prefix length. Let
 
 $$
-\tilde L_i=\frac{|\text{decode}(i)|}{|\text{decode}(y_t)|},\qquad
+\tilde L_i=\frac{|\text{token}(i)|}{|\text{token}(y_t)|},\qquad
 w_i=\frac{\exp(\tilde L_i)}{\sum_{j\in P(s)}\exp(\tilde L_j)}.
 $$
 
@@ -116,17 +116,12 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 ├── src/
 │   └── prefix/
 ├── configs/
-│   ├── data/
-│   ├── eval/
-│   ├── model/
-│   ├── objective/
-│   ├── runs/
-│   └── train/
+│   ├── README.md
+│   └── *.yaml
 ├── scripts/
-├── cluster/
-│   └── runai/
-│       ├── spinup_workspace.sh
-│       └── submit_train.sh
+├── runai/
+│   ├── spinup_workspace.sh
+│   └── submit_train.sh
 ├── docs/
 ├── data/
 └── runs/
@@ -137,6 +132,6 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 ### Data:
 
 ```bash
-uv run python scripts/download_fineweb_edu.py --data-config configs/data/fineweb_edu_pack2048.yaml
-uv run python scripts/create_mds.py --data-config configs/data/fineweb_edu_pack2048.yaml
+uv run python scripts/download_fineweb_edu.py --run-config configs/ce_seed_0.yaml
+uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml
 ```

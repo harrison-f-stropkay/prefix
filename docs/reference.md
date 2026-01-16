@@ -1,23 +1,19 @@
 # Reference
 
-## Model
+## Model + Data
 
-Canonical config: `configs/model/llama3_500m.yaml`.
-
-## Data
-
-Canonical config: `configs/data/fineweb_edu_ascii_pack2048.yaml`.
+Canonical run config: `configs/ce_seed_0.yaml`.
 
 Dataset pipeline:
 
 - FineWeb-Edu
-- ASCII-only text
 - pack sequences to length 2048
 - persist as MDS; load via MosaicML Streaming
 
-Download script (writes sharded JSONL under `data/raw/`):
+Download + MDS creation:
 
-- `python scripts/download_fineweb_edu.py --config configs/data/fineweb_edu_ascii_pack2048.yaml --out-dir data/raw/fineweb-edu --max-examples 10000`
+- `uv run python scripts/download_fineweb_edu.py --run-config configs/ce_seed_0.yaml`
+- `uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml`
 
 ## Hardware
 
@@ -27,13 +23,13 @@ Download script (writes sharded JSONL under `data/raw/`):
 ## Logging
 
 - human-readable logs via Python `logging`
-- metrics appended to a CSV (one row per loss/eval)
+- eval outputs saved as JSON under `runs/<run_name>/eval/lm_eval_final.json`
 
 ## Objective Decisions
 
-- Prefix-softmax targets assign probability mass only to prefix tokens (non-prefix = zero mass).
-- Length is `len(decoded_ascii_string)`; non-alphanumeric like `\n` counts as 1 character.
-- Targets are pure prefix-softmax distributions (no label-smoothing epsilon).
+- Prefix objectives assign probability mass only to prefix tokens (non-prefix = zero mass).
+- Length is the byte-level token string length from `convert_ids_to_tokens`.
+- Prefix objectives use epsilon-weighted mixing with the gold token (`1 - epsilon` on gold).
 - Special tokens or empty decoded strings use a one-hot target on themselves.
 - Tokenizer is `AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B", use_fast=True)`.
-- Pre-compute the target vector for each token in the vocabulary, given an objective YAML; store those values sparsely and with quick GPU access in mind.
+- Pre-compute prefix weights per token for fast lookup during training.

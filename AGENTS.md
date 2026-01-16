@@ -4,7 +4,7 @@
 - Reusable logic lives in `src/prefix/`; keep `scripts/` as thin entrypoints.
 - Config policy:
   - Component configs are YAML under `configs/{data,model,train,objective,eval}/`.
-  - Top-level run specs are TOML under `configs/runs/` (see `configs/README.md`).
+- Run configs are YAML under `configs/` (see `configs/README.md`).
 - Artifacts: keep outputs in `runs/` and datasets/artifacts in `data/` (both are gitignored). Avoid committing large binaries.
 
 ## Dev Environment
@@ -27,9 +27,9 @@ Common commands:
 
 ## Cluster (Run:ai)
 
-- Cluster helpers live under `cluster/runai/`.
+- Cluster helpers live under `runai/`.
 - Don’t run `runai ...` commands unless explicitly asked (they require cluster auth and submit real workloads).
-- `cluster/runai/submit_train.sh` re-clones the repo at `main`; run-config paths must exist in the repo checkout.
+- `runai/submit_train.sh` re-clones the repo at `main`; run-config paths must exist in the repo checkout.
 
 ## Canonical Docs
 

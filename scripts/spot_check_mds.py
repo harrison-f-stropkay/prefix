@@ -1,51 +1,63 @@
 import argparse
 import logging
 from pathlib import Path
-from tqdm import tqdm
 
-import yaml
-from streaming import StreamingDataLoader, StreamingDataset
-from transformers import AutoTokenizer
+from prefix.config import load_run_config
+from prefix.data import build_streaming_dataloader
+from prefix.objectives import load_tokenizer
 
 
-DATA_CONFIG_PATH = "configs/data/fineweb_edu_ascii_pack2048.yaml"
-TRAIN_CONFIG_PATH = "configs/train/single_node_8gpu.yaml"
+class Args(argparse.Namespace):
+    run_config: Path
+    num_batches: int
+    decode: bool
 
-data_config = yaml.safe_load(Path(DATA_CONFIG_PATH).read_text(encoding="utf-8"))
-train_config = yaml.safe_load(Path(TRAIN_CONFIG_PATH).read_text(encoding="utf-8"))
 
-output_dir = Path(data_config["dir"])
-batch_size = train_config["batch_size"]
-tokenize_name = data_config["tokenizer"]["hf_id"]
+def parse_args() -> Args:
+    parser = argparse.ArgumentParser(description="Spot check a local MDS dataset.")
+    parser.add_argument("--run-config", required=True, type=Path)
+    parser.add_argument("--num-batches", type=int, default=1)
+    parser.add_argument("--decode", action="store_true")
+    return parser.parse_args(namespace=Args())
 
-tokenizer = AutoTokenizer.from_pretrained(tokenize_name)
 
-dataset = StreamingDataset(
-    local=str(output_dir),
-    shuffle=True,
-    batch_size=batch_size,
-)
+def main() -> None:
+    args = parse_args()
+    config = load_run_config(args.run_config)
+    data_cfg = config["data"]
+    train_cfg = config.get("train") or {}
+    run_cfg = config.get("run") or {}
+    seed = int(run_cfg.get("seed", 0))
 
-print(len(dataset))
+    output_dir = Path(data_cfg["dir"])
+    if not output_dir.exists():
+        raise FileNotFoundError(f"MDS directory not found: {output_dir}")
 
-dataloader = StreamingDataLoader(
-    dataset=dataset,
-    batch_size=batch_size,
-    pin_memory=True,
-)
+    batch_size = int(train_cfg.get("per_gpu_batch_size", 1))
+    loader = build_streaming_dataloader(
+        output_dir,
+        batch_size,
+        shuffle=True,
+        streaming_cfg=data_cfg.get("streaming") or {},
+        shuffle_seed=seed,
+    )
 
-print("state_dict: ", dataloader.state_dict())
+    dataset = loader.dataset
+    logging.info("dataset size: %s", len(dataset))
+    logging.info("state_dict: %s", loader.state_dict())
 
-# it = iter(dataloader)
-# for batch_idx in range(num_batches):
-#     try:
-#         sample = next(it)
-#     except StopIteration:
-#         logging.warning("MDS ended after %d batches", batch_idx)
-#         break
+    if not args.decode:
+        return
 
-#     ids = sample["input_ids"][sample["input_ids"].shape[0] - 1]
-#     text = tokenizer.decode(ids, skip_special_tokens=False)
-#     print(f"--- last example in the batch {batch_idx} ---")
-#     print(text)
-#     print()
+    tokenizer = load_tokenizer(data_cfg["tokenizer"]["hf_id"])
+    it = iter(loader)
+    for batch_idx in range(args.num_batches):
+        batch = next(it)
+        ids = batch["input_ids"][-1]
+        text = tokenizer.decode(ids, skip_special_tokens=False)
+        logging.info("batch %d last sample: %s", batch_idx, text)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    main()

@@ -1,6 +1,8 @@
 """Objective utilities for prefix-aware training."""
 
 import math
+
+import marisa_trie
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 
@@ -9,60 +11,94 @@ def load_tokenizer(tokenizer_hf_id: str) -> PreTrainedTokenizerFast:
 
 
 def build_lookup(tokenizer: PreTrainedTokenizerFast) -> list[tuple[list[int], list[int]]]:
-    decoded_vocab = [
-        tokenizer.decode(
-            [token_id],
-            skip_special_tokens=False,
-            clean_up_tokenization_spaces=False,
-        )
-        for token_id in range(tokenizer.vocab_size)
+    vocab_size = len(tokenizer)
+    token_strings = [
+        tokenizer.convert_ids_to_tokens(token_id) for token_id in range(vocab_size)
     ]
-    decoded_lengths = [len(decoded) for decoded in decoded_vocab]
+    # Lengths are in byte-level token space (token string length), matching model units.
+    token_lengths = [len(token_str) for token_str in token_strings]
     special_ids = set(tokenizer.all_special_ids)
-    vocab_size = tokenizer.vocab_size
-
-    class _TrieNode:
-        __slots__ = ("children", "terminal_ids")
-
-        def __init__(self) -> None:
-            self.children: dict[str, _TrieNode] = {}
-            self.terminal_ids: list[int] = []
-
-    root = _TrieNode()
-    for token_id, decoded in enumerate(decoded_vocab):
-        if token_id in special_ids or decoded == "":
+    token_ids_by_string: dict[str, list[int]] = {}
+    for token_id, token_str in enumerate(token_strings):
+        if token_id in special_ids or token_str == "":
             continue
-        node = root
-        for ch in decoded:
-            node = node.children.setdefault(ch, _TrieNode())
-        node.terminal_ids.append(token_id)
+        token_ids_by_string.setdefault(token_str, []).append(token_id)
+    trie = marisa_trie.Trie(token_ids_by_string.keys())
 
     prefix_lookup: list[tuple[list[int], list[int]]] = [([], []) for _ in range(vocab_size)]
-    for token_id, decoded in enumerate(decoded_vocab):
-        if token_id in special_ids or decoded == "":
-            prefix_lookup[token_id] = ([token_id], [decoded_lengths[token_id]])
+    for token_id, token_str in enumerate(token_strings):
+        if token_id in special_ids or token_str == "":
+            prefix_lookup[token_id] = ([token_id], [token_lengths[token_id]])
             continue
-        node = root
         prefix_ids: list[int] = []
         prefix_lengths: list[int] = []
-        for ch in decoded:
-            node = node.children[ch]
-            if node.terminal_ids:
-                for prefix_id in node.terminal_ids:
-                    prefix_ids.append(prefix_id)
-                    prefix_lengths.append(decoded_lengths[prefix_id])
+        for prefix_str in trie.prefixes(token_str):
+            for prefix_id in token_ids_by_string[prefix_str]:
+                prefix_ids.append(prefix_id)
+                prefix_lengths.append(token_lengths[prefix_id])
         prefix_lookup[token_id] = (prefix_ids, prefix_lengths)
     return prefix_lookup
 
 
-def get_logprobs(lookup: list[tuple[list[int], list[int]]], token_id: int) -> dict[int, float]:
+def build_target_distribution(
+    lookup: list[tuple[list[int], list[int]]],
+    token_id: int,
+    objective_type: str,
+    *,
+    epsilon: float = 0.1,
+    tau: float = 1.0,
+    normalized: bool = False,
+) -> list[float]:
+    vocab_size = len(lookup)
+    dist = [0.0] * vocab_size
+
+    if objective_type == "cross_entropy":
+        dist[token_id] = 1.0
+        return dist
+    if objective_type == "label_smoothing":
+        if vocab_size <= 1:
+            dist[token_id] = 1.0
+            return dist
+        smooth = epsilon / (vocab_size - 1)
+        for i in range(vocab_size):
+            dist[i] = smooth
+        dist[token_id] = 1.0 - epsilon
+        return dist
+
+    if objective_type not in {
+        "prefix_simple",
+        "prefix_softmax",
+        "prefix_softmax_normalized",
+    }:
+        raise ValueError(f"Unknown objective type: {objective_type!r}")
+
     prefix_ids, prefix_lengths = lookup[token_id]
-    if not prefix_ids:
-        return {}
-    max_len = max(prefix_lengths)
-    exp_sum = sum(math.exp(length - max_len) for length in prefix_lengths)
-    log_denom = max_len + math.log(exp_sum)
-    return {
-        prefix_id: length - log_denom
-        for prefix_id, length in zip(prefix_ids, prefix_lengths, strict=True)
-    }
+    prefix_pairs = [
+        (pid, plen)
+        for pid, plen in zip(prefix_ids, prefix_lengths, strict=True)
+        if pid != token_id
+    ]
+    if not prefix_pairs:
+        dist[token_id] = 1.0
+        return dist
+
+    dist[token_id] = 1.0 - epsilon
+    if objective_type == "prefix_simple":
+        share = epsilon / len(prefix_pairs)
+        for pid, _ in prefix_pairs:
+            dist[pid] += share
+        return dist
+
+    if normalized or objective_type == "prefix_softmax_normalized":
+        token_len = max(prefix_lengths)
+        denom = token_len if token_len > 0 else 1
+        weights = [plen / denom for _, plen in prefix_pairs]
+    else:
+        weights = [plen for _, plen in prefix_pairs]
+
+    scaled = [w / tau for w in weights]
+    max_scaled = max(scaled)
+    exp_sum = sum(math.exp(s - max_scaled) for s in scaled)
+    for (pid, _), s in zip(prefix_pairs, scaled, strict=True):
+        dist[pid] += epsilon * (math.exp(s - max_scaled) / exp_sum)
+    return dist

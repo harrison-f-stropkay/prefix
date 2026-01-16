@@ -195,6 +195,7 @@ cython_debug/
 # Project artifacts
 /data/
 /runs/
+/dry_runs/
 
 # PyPI configuration file
 .pypirc

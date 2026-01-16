@@ -8,7 +8,7 @@ Repo layout: see `README.md`.
 
 - Put reusable logic in `src/prefix/`; keep `scripts/` thin wrappers.
 - Keep experiment knobs in `configs/`; keep outputs in `runs/`/`data/` (gitignored).
-- Keep cluster concerns in `cluster/runai/`; training code should not know Run:ai exists.
+- Keep cluster concerns in `runai/`; training code should not know Run:ai exists.
 
 ## Config Formats
 
@@ -16,14 +16,14 @@ See `configs/README.md` for schema details.
 
 Format policy:
 
-- Component configs: YAML under `configs/{data,model,train,objective,eval}/`.
-- Run specs: TOML under `configs/runs/`.
+- Run configs: YAML under `configs/` (self-contained).
+- `run.name` matches the filename stem and determines the run directory.
 
 ## Reproducibility Expectations for Runs
 
 For each run under `runs/<run_name>/`, save:
 
-- resolved configs + run spec
+- resolved configs + run config
 - git commit hash
 - environment snapshot (Python + key package versions)
 - metrics/evals

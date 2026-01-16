@@ -12,6 +12,15 @@ We save a full "training state" dict, including:
 - RNG states (PyTorch, CUDA, NumPy, Python)
 - MosaicML `StreamingDataset`/`StreamingDataLoader` state dict
 
+### Multi-GPU Checkpoint Files
+
+To keep per-rank dataloader/RNG state without duplicating large model weights:
+
+- `checkpoints/latest.pt`: global state (model/optimizer/scheduler/step/tokens_seen + dataloader state) written by rank 0.
+- `checkpoints/latest_rank{rank}.pt`: per-rank RNG state written by every rank.
+
+On resume, every rank loads `latest.pt`, then its own `latest_rank{rank}.pt`.
+
 ## Intended Preemption/Resume Workflow
 
 Goal: a run can be preempted and later restarted, and training continues from the latest checkpoint.
@@ -29,7 +38,7 @@ For a given `run_name`, the run output directory is stable:
 
 Recommended substructure:
 
-- `/home/apluser/runs/<run_name>/checkpoints/` (latest + periodic)
+- `/home/apluser/runs/<run_name>/checkpoints/` (latest + at most one periodic)
 - `/home/apluser/runs/<run_name>/logs/` (stdout/stderr, training logs)
 - `/home/apluser/runs/<run_name>/meta/` (git ref/commit, resolved configs, environment snapshot)
 
@@ -47,7 +56,7 @@ Run:ai preemption can terminate a pod; whether the workload later resumes automa
 
 ## What the Submission Script Does (and Doesn’t)
 
-`cluster/runai/submit_train.sh`:
+`runai/submit_train.sh`:
 
 - Submits a preemptible workload and writes outputs to the PVC under `/home/apluser/runs/<run_name>/`.
 - Does not implement resume logic itself; it just starts `python -m prefix.train ...` again.
