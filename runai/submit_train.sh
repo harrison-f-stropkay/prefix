@@ -58,6 +58,33 @@ git reset --hard origin/main
 uv sync --frozen
 uv pip install -e .
 
+if [[ "${run_id}" == tiny* ]]; then
+  RUN_CONFIG="${run_config}" uv run python - <<'PY'
+import os
+from pathlib import Path
+
+import numpy as np
+import yaml
+from streaming import MDSWriter
+
+run_config = Path(os.environ["RUN_CONFIG"])
+cfg = yaml.safe_load(run_config.read_text(encoding="utf-8"))
+data_dir = Path(cfg["data"]["dir"])
+seq_len = int(cfg["data"]["packing"]["sequence_length"])
+
+if data_dir.exists() and any(data_dir.iterdir()):
+    print(f"[run] data dir already populated: {data_dir}")
+else:
+    data_dir.mkdir(parents=True, exist_ok=True)
+    num_samples = 256
+    with MDSWriter(out=str(data_dir), columns={"input_ids": f"ndarray:int32:{seq_len}"}) as writer:
+        for i in range(num_samples):
+            data = (np.arange(seq_len, dtype=np.int32) + i) % 32000
+            writer.write({"input_ids": data})
+    print(f"[run] wrote {num_samples} fake sequences to {data_dir}")
+PY
+fi
+
 echo "[run] starting ${mode}"
 uv run python -m "${module}" \
   --run-config "${run_config}" \
