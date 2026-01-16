@@ -29,7 +29,7 @@ Common commands:
 
 - Cluster helpers live under `runai/`.
 - Don’t run `runai ...` commands unless explicitly asked (they require cluster auth and submit real workloads).
-- `runai/submit_train.sh` re-clones the repo at `main`; run-config paths must exist in the repo checkout.
+- `runai/submit_train.sh` resets the repo to `main`; run-config paths must exist in the repo checkout.
 
 ## Canonical Docs
 

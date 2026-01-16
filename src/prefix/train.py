@@ -8,6 +8,7 @@ import logging
 import math
 import os
 import platform
+import subprocess
 import random
 import sys
 from contextlib import nullcontext
@@ -47,16 +48,20 @@ PREFIX_OBJECTIVES = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--run-config", required=True, type=Path)
     return parser.parse_args()
 
 
-def configure_logging() -> None:
+def configure_logging(log_path: Path | None = None) -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    if log_path is not None:
+        handler = logging.FileHandler(log_path)
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        logging.getLogger().addHandler(handler)
 
 
 def set_global_seed(seed: int) -> None:
@@ -89,6 +94,10 @@ def build_amp_context(device: torch.device) -> Any:
     return nullcontext()
 
 
+def infer_run_dir(run_config: Path, runs_root: Path) -> Path:
+    return runs_root / run_config.stem
+
+
 def load_checkpoint(path: Path) -> dict[str, Any]:
     return torch.load(path, map_location="cpu", weights_only=False)
 
@@ -112,16 +121,28 @@ def restore_rng_state(state: dict[str, Any]) -> None:
         random.setstate(state["python"])
 
 
-def write_metadata(output_dir: Path, config: dict[str, Any]) -> None:
+def write_metadata(output_dir: Path, config: dict[str, Any], run_config_path: Path) -> None:
     meta_dir = output_dir / "meta"
     config_dir = meta_dir / "configs"
     config_dir.mkdir(parents=True, exist_ok=True)
+
+    run_yaml_path = config_dir / "run.yaml"
+    if not run_yaml_path.exists():
+        run_yaml_path.write_text(run_config_path.read_text(encoding="utf-8"), encoding="utf-8")
 
     run_config_path = config_dir / "run_config.json"
     if not run_config_path.exists():
         run_config_path.write_text(
             json.dumps(config, indent=2, sort_keys=True), encoding="utf-8"
         )
+
+    git_path = meta_dir / "git.txt"
+    if not git_path.exists():
+        try:
+            commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        except Exception:
+            commit = "unknown"
+        git_path.write_text(f"git_commit={commit}\n", encoding="utf-8")
 
     env_path = meta_dir / "env.json"
     if not env_path.exists():
@@ -436,7 +457,10 @@ def resolve_objective(
 
 def main() -> None:
     args = parse_args()
-    configure_logging()
+    output_dir = args.output_dir or infer_run_dir(args.run_config, Path("runs"))
+    log_dir = output_dir / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    configure_logging(log_dir / "train.log")
     config = load_run_config(args.run_config)
 
     rank, world, local_rank = init_dist()
@@ -454,6 +478,8 @@ def main() -> None:
     set_global_seed(seed)
 
     per_device_batch = int(train_cfg.get("per_gpu_batch_size", 1))
+    max_steps = int(train_cfg.get("max_steps", 100))
+    max_tokens = int(train_cfg.get("max_tokens", 0))
     grad_clip = float(train_cfg.get("grad_clip", 0.0))
     checkpoint_cfg = train_cfg.get("checkpointing") or {}
     checkpoint_enabled = bool(checkpoint_cfg.get("enabled", True))
@@ -482,12 +508,12 @@ def main() -> None:
     lm_eval_cfg = eval_cfg.get("lm_eval") or {}
     tasks = list(lm_eval_cfg.get("tasks") or [])
 
-    checkpoint_dir = args.output_dir / "checkpoints"
+    checkpoint_dir = output_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     start_step = 0
     tokens_seen = 0
     if rank == 0:
-        write_metadata(args.output_dir, config)
+        write_metadata(output_dir, config, args.run_config)
     global_state, rank_state = load_checkpoint_state(
         checkpoint_dir,
         rank=rank,
@@ -595,7 +621,7 @@ def main() -> None:
     if rank == 0 and tasks:
         target = model.module if isinstance(model, DDP) else model
         target.eval()
-        eval_dir = args.output_dir / "eval"
+        eval_dir = output_dir / "eval"
         eval_dir.mkdir(parents=True, exist_ok=True)
         results = run_lm_eval(target, tokenizer, tasks, batch_size=1, device=device)
         out_path = eval_dir / "lm_eval_final.json"

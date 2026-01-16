@@ -10,6 +10,7 @@ from typing import Any, Iterator
 import numpy as np
 import torch
 import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 from prefix.config import load_run_config
 from prefix.train import (
     build_amp_context,
@@ -18,6 +19,7 @@ from prefix.train import (
     build_optimizer_scheduler,
     compute_loss,
     configure_logging,
+    infer_run_dir,
     init_dist,
     load_checkpoint_state,
     resolve_objective,
@@ -32,7 +34,7 @@ LOGGER = logging.getLogger(__name__)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--run-config", required=True, type=Path)
     return parser.parse_args()
 
@@ -85,7 +87,10 @@ def run_step(
 
 def main() -> None:
     args = parse_args()
-    configure_logging()
+    output_dir = args.output_dir or infer_run_dir(args.run_config, Path("dry_runs"))
+    log_dir = output_dir / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    configure_logging(log_dir / "dry_run.log")
     config = load_run_config(args.run_config)
 
     rank, world, local_rank = init_dist()
@@ -132,10 +137,10 @@ def main() -> None:
         device=device,
     )
 
-    checkpoint_dir = args.output_dir / "checkpoints"
+    checkpoint_dir = output_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     if rank == 0:
-        write_metadata(args.output_dir, config)
+        write_metadata(output_dir, config, args.run_config)
 
     model.train()
     it = iter(loader)
