@@ -60,8 +60,8 @@ git reset --hard origin/main
 uv sync --frozen
 uv pip install -e .
 
-if [[ "${run_id}" == tiny* ]]; then
-  uv run python scripts/make_fake_mds.py --run-config "${run_config}" --num-samples 256
+if [[ "${run_id}" == tiny* || "${run_id}" == *smoke* ]]; then
+  uv run python scripts/make_fake_mds.py --run-config "${run_config}"
 fi
 
 echo "[run] starting ${mode}"
