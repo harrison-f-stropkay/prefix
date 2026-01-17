@@ -263,6 +263,9 @@ def main() -> None:
             per_device_batch * world,
         )
         LOGGER.info("loss step1: %.6f; loss step2 before: %.6f; after: %.6f", loss1, loss2_before, loss2_after)
+    # Cleanly tear down DDP to avoid NCCL shutdown warnings.
+    if dist.is_initialized():
+        dist.destroy_process_group()
 
 
 if __name__ == "__main__":

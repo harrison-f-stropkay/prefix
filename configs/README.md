@@ -64,7 +64,7 @@ train:
     enabled: true
     save_every_steps: 1000
     keep_last: 1
-  per_gpu_batch_size: 32
+  per_gpu_batch_size: 8
   learning_rate: 2.0e-4
   weight_decay: 0.1
   adam_betas: [0.9, 0.95]

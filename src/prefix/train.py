@@ -629,6 +629,8 @@ def main() -> None:
         LOGGER.info("lm-eval results saved to %s", out_path)
     if dist.is_initialized():
         dist.barrier()
+        # Cleanly tear down DDP to avoid NCCL shutdown warnings.
+        dist.destroy_process_group()
 
 
 if __name__ == "__main__":

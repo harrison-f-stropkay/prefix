@@ -1,7 +1,7 @@
 run:
-  name: prefix_unnormalized_tau_0p5_seed_0
+  name: prefix_normalized_tau_0p1_seed_test
   seed: 0
-  type: prefix_unnormalized_tau_0p5
+  type: prefix_normalized_tau_0p1
 data:
   dataset:
     hf_id: HuggingFaceFW/fineweb-edu
@@ -45,18 +45,18 @@ train:
   warmup_steps: 1000
   max_tokens: 10000000000
   adam_betas:
-  - 0.9
-  - 0.95
+    - 0.9
+    - 0.95
   adam_eps: 1.0e-08
   grad_clip: 1.0
 eval:
   lm_eval:
     tasks:
-    - piqa
-    - winogrande
-    - arc_easy
-    - hellaswag
+      - piqa
+      - winogrande
+      - arc_easy
+      - hellaswag
 objective:
   type: prefix_softmax
-  normalized: false
-  tau: 0.5
+  normalized: true
+  tau: 0.1

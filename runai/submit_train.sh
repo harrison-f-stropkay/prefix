@@ -38,6 +38,7 @@ if [[ "$dry_run" == "true" ]]; then
   mode="dry-run"
   module="prefix.dry_run"
   job_name="prefix-dry-run-${run_slug}"
+  # Use torchrun so dry runs exercise multi-rank DDP behavior.
   launcher="torchrun --nproc_per_node=8"
 else
   mode="train"
@@ -52,6 +53,7 @@ set -euo pipefail
 
 cd "${repo_root}"
 
+# Force GitHub remote so jobs don't fall back to stale GitLab origins.
 git remote set-url origin "https://github.com/harrison-f-stropkay/prefix.git"
 git fetch origin main
 git checkout main
@@ -61,6 +63,7 @@ uv sync --frozen
 uv pip install -e .
 
 if [[ "${run_id}" == tiny* || "${run_id}" == *smoke* ]]; then
+  # Seed a small synthetic MDS so dry-run plumbing doesn't depend on real data.
   uv run python scripts/make_fake_mds.py --run-config "${run_config}"
 fi
 

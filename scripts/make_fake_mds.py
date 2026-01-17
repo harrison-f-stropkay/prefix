@@ -24,7 +24,8 @@ def main() -> None:
     seq_len = int(cfg["data"]["packing"]["sequence_length"])
     per_device_batch = int(cfg.get("train", {}).get("per_gpu_batch_size", 1))
     world_size = int(cfg.get("train", {}).get("distributed", {}).get("world_size", 1))
-    min_samples = max(256, per_device_batch * world_size * 4)
+    # Ensure enough sequences for multiple global batches across all ranks.
+    min_samples = max(256, per_device_batch * world_size * 16)
     num_samples = max(args.num_samples or min_samples, min_samples)
 
     if data_dir.exists() and any(data_dir.iterdir()):

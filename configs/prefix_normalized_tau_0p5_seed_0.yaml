@@ -36,7 +36,7 @@ train:
     enabled: true
     save_every_steps: 1000
     keep_last: 1
-  per_gpu_batch_size: 32
+  per_gpu_batch_size: 8
   max_steps: 100
   learning_rate: 0.0002
   weight_decay: 0.1
