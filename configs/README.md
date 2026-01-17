@@ -38,7 +38,7 @@ data:
   tokenizer:
     hf_id: meta-llama/Meta-Llama-3-8B
   text_processing:
-    num_proc: 128
+    num_proc: 64
     batch_size: 2048
   packing:
     sequence_length: 2048

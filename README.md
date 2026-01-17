@@ -141,3 +141,10 @@ uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml
 ```bash
 bash runai/submit_train.sh --dry-run configs/ce_seed_0.yaml
 ```
+
+## Troubleshooting (Cluster)
+
+- SIGBUS during dry-run on `configs/ce_seed_0.yaml` was reproduced to a single-process `StreamingDataset` read on the PVC `data/mds` directory (no DDP required).
+- `configs/prefix_normalized_tau_0p1_smoke.yaml` dry-run completed successfully on the same node pool.
+- Shard sizes matched `index.json`, so corruption appears internal to a shard or storage-level; disable SHM (`NCCL_SHM_DISABLE=1 UCX_TLS=^shm`) did not avoid the crash.
+- Fastest fix: rebuild `data/mds` on the PVC (`uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml`).
