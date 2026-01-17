@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any, Iterable
@@ -122,6 +123,7 @@ def build_streaming_dataloader(
     streaming_cfg: dict[str, Any],
     shuffle_seed: int,
 ) -> StreamingDataLoader:
+    validate_mds_shards(data_dir)
     dataset = StreamingDataset(
         local=str(data_dir),
         split=None,
@@ -145,3 +147,27 @@ def build_streaming_dataloader(
         num_workers=0,
         collate_fn=collate_input_ids,
     )
+
+
+def validate_mds_shards(data_dir: Path) -> None:
+    index_path = data_dir / "index.json"
+    if not index_path.exists():
+        raise FileNotFoundError(f"MDS index not found: {index_path}")
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    shards = index.get("shards") or []
+    if not shards:
+        raise ValueError(f"MDS index has no shards: {index_path}")
+    for shard in shards:
+        raw = shard.get("raw_data") or shard.get("zip_data") or {}
+        basename = raw.get("basename")
+        expected = raw.get("bytes")
+        if not basename or expected is None:
+            raise ValueError(f"MDS index missing shard metadata: {index_path}")
+        shard_path = data_dir / basename
+        if not shard_path.exists():
+            raise FileNotFoundError(f"MDS shard not found: {shard_path}")
+        actual = shard_path.stat().st_size
+        if actual != expected:
+            raise RuntimeError(
+                f"MDS shard size mismatch: {shard_path} expected {expected} bytes, got {actual} bytes"
+            )

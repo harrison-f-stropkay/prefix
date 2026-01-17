@@ -64,7 +64,7 @@ set +e; \
 uv run ${launcher} -m \"${module}\" --run-config \"${run_config}\"; \
 status=$?; \
 set -e; \
-exit ${status}"
+exit \${status}"
 
 exec runai training standard submit "$job_name" \
   --project "strophf1" \
