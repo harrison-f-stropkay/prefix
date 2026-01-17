@@ -1,5 +1,5 @@
 run:
-  name: prefix_normalized_tau_0p1_seed_test
+  name: test
   seed: 0
   type: prefix_normalized_tau_0p1
 data:
