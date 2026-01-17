@@ -47,34 +47,21 @@ else
   launcher="python"
 fi
 
-inner_cmd=$(
-  cat <<EOF
-set -euo pipefail
-
-cd "${repo_root}"
-
-# Force GitHub remote so jobs don't fall back to stale GitLab origins.
-git remote set-url origin "https://github.com/harrison-f-stropkay/prefix.git"
-git fetch origin main
-git checkout main
-git reset --hard origin/main
-
-uv sync --frozen
-uv pip install -e .
-
-if [[ "${run_id}" == tiny* || "${run_id}" == *smoke* ]]; then
-  # Seed a small synthetic MDS so dry-run plumbing doesn't depend on real data.
-  uv run python scripts/make_fake_mds.py --run-config "${run_config}"
-fi
-
-echo "[run] starting ${mode}"
-mkdir -p "${repo_root}/runs/${run_id}/logs"
-run_log_path="${repo_root}/runs/${run_id}/logs/${mode}.log"
-uv run ${launcher} -m "${module}" \
-  --run-config "${run_config}" \
-  2>&1 | tee -a "\${run_log_path}"
-EOF
-)
+inner_cmd="set -euo pipefail; \
+mkdir -p \"${repo_root}/runs/${run_id}/logs\"; \
+: > \"${repo_root}/runs/${run_id}/logs/${mode}.log\"; \
+exec >> \"${repo_root}/runs/${run_id}/logs/${mode}.log\" 2>&1; \
+set -x; \
+cd \"${repo_root}\"; \
+git remote set-url origin \"https://github.com/harrison-f-stropkay/prefix.git\"; \
+git fetch origin main; \
+git checkout main; \
+git reset --hard origin/main; \
+uv sync --frozen; \
+uv pip install -e .; \
+if [[ \"${run_id}\" == tiny* || \"${run_id}\" == *smoke* ]]; then uv run python scripts/make_fake_mds.py --run-config \"${run_config}\"; fi; \
+echo \"[run] starting ${mode}\"; \
+uv run ${launcher} -m \"${module}\" --run-config \"${run_config}\""
 
 exec runai training standard submit "$job_name" \
   --project "strophf1" \
