@@ -48,10 +48,9 @@ else
 fi
 
 inner_cmd="set -euo pipefail; \
-run_log=\"${repo_root}/runs/${run_id}/logs/${mode}.log\"; \
 mkdir -p \"${repo_root}/runs/${run_id}/logs\"; \
-: > \"${run_log}\"; \
-exec >> \"${run_log}\" 2>&1; \
+: > \"${repo_root}/runs/${run_id}/logs/${mode}.log\"; \
+exec >> \"${repo_root}/runs/${run_id}/logs/${mode}.log\" 2>&1; \
 cd \"${repo_root}\"; \
 git remote set-url origin \"https://github.com/harrison-f-stropkay/prefix.git\"; \
 git fetch origin main; \
