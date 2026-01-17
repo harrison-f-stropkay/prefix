@@ -48,10 +48,10 @@ else
 fi
 
 inner_cmd="set -euo pipefail; \
+run_log=\"${repo_root}/runs/${run_id}/logs/${mode}.log\"; \
 mkdir -p \"${repo_root}/runs/${run_id}/logs\"; \
-: > \"${repo_root}/runs/${run_id}/logs/${mode}.log\"; \
-exec >> \"${repo_root}/runs/${run_id}/logs/${mode}.log\" 2>&1; \
-set -x; \
+: > \"${run_log}\"; \
+exec >> \"${run_log}\" 2>&1; \
 cd \"${repo_root}\"; \
 git remote set-url origin \"https://github.com/harrison-f-stropkay/prefix.git\"; \
 git fetch origin main; \
@@ -61,7 +61,11 @@ uv sync --frozen; \
 uv pip install -e .; \
 if [[ \"${run_id}\" == tiny* || \"${run_id}\" == *smoke* ]]; then uv run python scripts/make_fake_mds.py --run-config \"${run_config}\"; fi; \
 echo \"[run] starting ${mode}\"; \
-uv run ${launcher} -m \"${module}\" --run-config \"${run_config}\""
+set +e; \
+uv run ${launcher} -m \"${module}\" --run-config \"${run_config}\"; \
+status=$?; \
+set -e; \
+exit ${status}"
 
 exec runai training standard submit "$job_name" \
   --project "strophf1" \
