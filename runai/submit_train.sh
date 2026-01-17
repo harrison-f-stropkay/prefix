@@ -68,9 +68,8 @@ if [[ "${run_id}" == tiny* || "${run_id}" == *smoke* ]]; then
 fi
 
 echo "[run] starting ${mode}"
-run_log_dir="${repo_root}/runs/${run_id}/logs"
-mkdir -p "${run_log_dir}"
-run_log_path="${run_log_dir}/${mode}.log"
+mkdir -p "${repo_root}/${mode}/${run_id}/
+run_log_path="${repo_root}/${mode}/${run_id}/${run_id}.log"
 uv run ${launcher} -m "${module}" \
   --run-config "${run_config}" \
   2>&1 | tee -a "${run_log_path}"
