@@ -8,8 +8,8 @@ import logging
 import math
 import os
 import platform
-import subprocess
 import random
+import subprocess
 import sys
 from contextlib import nullcontext
 from importlib import metadata
@@ -20,6 +20,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
+from streaming import StreamingDataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import get_scheduler
 
@@ -132,9 +133,7 @@ def write_metadata(output_dir: Path, config: dict[str, Any], run_config_path: Pa
 
     run_config_path = config_dir / "run_config.json"
     if not run_config_path.exists():
-        run_config_path.write_text(
-            json.dumps(config, indent=2, sort_keys=True), encoding="utf-8"
-        )
+        run_config_path.write_text(json.dumps(config, indent=2, sort_keys=True), encoding="utf-8")
 
     git_path = meta_dir / "git.txt"
     if not git_path.exists():
@@ -146,6 +145,7 @@ def write_metadata(output_dir: Path, config: dict[str, Any], run_config_path: Pa
 
     env_path = meta_dir / "env.json"
     if not env_path.exists():
+
         def get_version(name: str) -> str | None:
             try:
                 return metadata.version(name)
@@ -548,6 +548,7 @@ def main() -> None:
     step = start_step
     if tokens_seen == 0:
         tokens_seen = step * tokens_per_step
+
     def should_continue() -> bool:
         if max_steps > 0:
             return step < max_steps

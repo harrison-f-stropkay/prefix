@@ -18,9 +18,7 @@ def load_run_config(path: Path) -> dict[str, Any]:
     if not run_name:
         raise ValueError("run.name is required in run config.")
     if path.suffix in {".yaml", ".yml"} and path.stem != run_name:
-        raise ValueError(
-            f"run.name must match filename stem ({path.stem!r}), got {run_name!r}."
-        )
+        raise ValueError(f"run.name must match filename stem ({path.stem!r}), got {run_name!r}.")
     assert_llama3_config(data)
     return data
 
