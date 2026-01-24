@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import torch
@@ -100,7 +101,9 @@ def create_mds(data_cfg: dict[str, Any]) -> None:
     )
 
     written = 0
-    with MDSWriter(out=str(output_dir), columns={"input_ids": f"ndarray:int32:{seq_len}"}) as writer:
+    with MDSWriter(
+        out=str(output_dir), columns={"input_ids": f"ndarray:int32:{seq_len}"}
+    ) as writer:
         for packed in pack_token_ids(tokenized, seq_len):
             writer.write({"input_ids": np.asarray(packed, dtype=np.int32)})
             written += 1

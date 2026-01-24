@@ -26,10 +26,7 @@ build-backend = "uv_build"
 testpaths = ["tests"]
 
 [dependency-groups]
-dev = [
-    "pytest>=9.0.2",
-    "ruff>=0.14.10",
-]
+dev = ["pytest>=9.0.2", "ruff>=0.14.10"]
 
 [tool.ruff]
 line-length = 100
@@ -37,4 +34,15 @@ fix = true
 show-fixes = true
 
 [tool.ruff.lint]
-select = ["I"]
+extend-select = [
+  "E",  # pycodestyle errors
+  "W",  # pycodestyle warnings
+  "F",  # Pyflakes
+  "I",  # isort (import sorting)
+  "B",  # flake8-bugbear
+  "UP", # pyupgrade
+]
+
+ignore = [
+  "E501", # line too long
+]

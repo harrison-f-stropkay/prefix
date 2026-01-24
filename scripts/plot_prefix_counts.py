@@ -3,6 +3,7 @@ from pathlib import Path
 from statistics import mean, median
 
 import matplotlib
+
 matplotlib.use("Agg")
 import seaborn as sns
 from matplotlib import pyplot as plt

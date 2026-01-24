@@ -12,9 +12,7 @@ def load_tokenizer(tokenizer_hf_id: str) -> PreTrainedTokenizerFast:
 
 def build_lookup(tokenizer: PreTrainedTokenizerFast) -> list[tuple[list[int], list[int]]]:
     vocab_size = len(tokenizer)
-    token_strings = [
-        tokenizer.convert_ids_to_tokens(token_id) for token_id in range(vocab_size)
-    ]
+    token_strings = [tokenizer.convert_ids_to_tokens(token_id) for token_id in range(vocab_size)]
     # Lengths are in byte-level token space (token string length), matching model units.
     token_lengths = [len(token_str) for token_str in token_strings]
     special_ids = set(tokenizer.all_special_ids)
@@ -74,9 +72,7 @@ def build_target_distribution(
 
     prefix_ids, prefix_lengths = lookup[token_id]
     prefix_pairs = [
-        (pid, plen)
-        for pid, plen in zip(prefix_ids, prefix_lengths, strict=True)
-        if pid != token_id
+        (pid, plen) for pid, plen in zip(prefix_ids, prefix_lengths, strict=True) if pid != token_id
     ]
     if not prefix_pairs:
         dist[token_id] = 1.0

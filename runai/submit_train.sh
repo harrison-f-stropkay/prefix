@@ -56,8 +56,6 @@ git remote set-url origin \"https://github.com/harrison-f-stropkay/prefix.git\";
 git fetch origin main; \
 git checkout main; \
 git reset --hard origin/main; \
-uv sync --frozen; \
-uv pip install -e .; \
 if [[ \"${run_id}\" == tiny* || \"${run_id}\" == *smoke* ]]; then uv run python scripts/make_fake_mds.py --run-config \"${run_config}\"; fi; \
 echo \"[run] starting ${mode}\"; \
 set +e; \

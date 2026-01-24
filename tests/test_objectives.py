@@ -60,9 +60,7 @@ def test_target_distribution_prefix_softmax() -> None:
 
 def test_target_distribution_prefix_softmax_normalized() -> None:
     lookup = [([0], [1]), ([0, 1], [1, 2]), ([0, 1, 2], [1, 2, 3])]
-    dist = build_target_distribution(
-        lookup, 2, "prefix_softmax_normalized", epsilon=0.5
-    )
+    dist = build_target_distribution(lookup, 2, "prefix_softmax_normalized", epsilon=0.5)
     weight_0 = math.exp(1 / 3) / (math.exp(1 / 3) + math.exp(2 / 3))
     weight_1 = math.exp(2 / 3) / (math.exp(1 / 3) + math.exp(2 / 3))
     assert dist[2] == pytest.approx(0.5)

@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import argparse
 import logging
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import numpy as np
 import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
+
 from prefix.config import load_run_config
 from prefix.train import (
     build_amp_context,
@@ -262,7 +264,12 @@ def main() -> None:
             world,
             per_device_batch * world,
         )
-        LOGGER.info("loss step1: %.6f; loss step2 before: %.6f; after: %.6f", loss1, loss2_before, loss2_after)
+        LOGGER.info(
+            "loss step1: %.6f; loss step2 before: %.6f; after: %.6f",
+            loss1,
+            loss2_before,
+            loss2_after,
+        )
     # Cleanly tear down DDP to avoid NCCL shutdown warnings.
     if dist.is_initialized():
         dist.destroy_process_group()
