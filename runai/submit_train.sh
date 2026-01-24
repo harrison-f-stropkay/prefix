@@ -57,13 +57,6 @@ git fetch origin main; \
 git checkout main; \
 git reset --hard origin/main; \
 if [[ \"${run_id}\" == tiny* || \"${run_id}\" == *smoke* ]]; then uv run python scripts/make_fake_mds.py --run-config \"${run_config}\"; fi; \
-shm_bytes=\$(df -B1 /dev/shm | awk 'NR==2 {print \$2}'); \
-if [[ -n \"\${shm_bytes}\" && \"\${shm_bytes}\" -lt \$((8*1024*1024*1024)) ]]; then \
-  export UCX_TLS=^shm; \
-  export UCX_MEMTYPE_CACHE=n; \
-  export NCCL_SHM_DISABLE=1; \
-  echo \"[run] /dev/shm is small; disabling UCX/NCCL shm transports\"; \
-fi; \
 echo \"[run] starting ${mode}\"; \
 set +e; \
 uv run ${launcher} -m \"${module}\" --run-config \"${run_config}\"; \
@@ -82,6 +75,9 @@ exec runai training standard submit "$job_name" \
   --node-pools dgx-h100-80gb-alt \
   --node-pools dgx-h100-80gb-alt2 \
   --run-as-user \
+  --environment "UCX_TLS=^shm" \
+  --environment "UCX_MEMTYPE_CACHE=n" \
+  --environment "NCCL_SHM_DISABLE=1" \
   --environment "HOME=${pvc_path}" \
   --environment "USER=apluser" \
   --command -- bash -lc "$inner_cmd"
