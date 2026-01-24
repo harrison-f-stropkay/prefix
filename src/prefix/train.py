@@ -73,47 +73,28 @@ def set_global_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
-def _maybe_adjust_shm_env() -> None:
-    if os.environ.get("PREFIX_DISABLE_UCX_SHM") == "1":
-        os.environ.setdefault("UCX_TLS", "^shm")
-        os.environ.setdefault("UCX_MEMTYPE_CACHE", "n")
-    if os.environ.get("PREFIX_DISABLE_NCCL_SHM") == "1":
-        os.environ.setdefault("NCCL_SHM_DISABLE", "1")
-
-    if (
-        os.environ.get("PREFIX_DISABLE_UCX_SHM") is None
-        and os.environ.get("PREFIX_DISABLE_NCCL_SHM") is None
-    ):
-        try:
-            shm = os.statvfs("/dev/shm")
-        except OSError:
-            return
-        shm_bytes = shm.f_bsize * shm.f_blocks
-        threshold = 8 * 1024**3
-        if shm_bytes < threshold:
-            LOGGER.warning(
-                "/dev/shm size %.2f GiB is below %d GiB; disabling UCX/NCCL shm transports",
-                shm_bytes / 1024**3,
-                threshold // 1024**3,
-            )
-            os.environ.setdefault("UCX_TLS", "^shm")
-            os.environ.setdefault("UCX_MEMTYPE_CACHE", "n")
-            os.environ.setdefault("NCCL_SHM_DISABLE", "1")
-
-
 def init_dist() -> tuple[int, int, int]:
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     if torch.cuda.is_available():
+        # Set device before process group init to avoid NCCL guessing device IDs.
         torch.cuda.set_device(local_rank)
-    _maybe_adjust_shm_env()
     if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
         backend = "nccl" if torch.cuda.is_available() else "gloo"
         if torch.cuda.is_available():
+            # Pass device_id to silence NCCL warnings and ensure consistent mapping.
             dist.init_process_group(backend=backend, device_id=local_rank)
         else:
             dist.init_process_group(backend=backend)
     rank = dist.get_rank() if dist.is_initialized() else 0
     world = dist.get_world_size() if dist.is_initialized() else 1
+    if rank == 0:
+        try:
+            shm = os.statvfs("/dev/shm")
+        except OSError:
+            LOGGER.info("/dev/shm not available")
+        else:
+            shm_bytes = shm.f_bsize * shm.f_blocks
+            LOGGER.info("/dev/shm size %.2f GiB", shm_bytes / 1024**3)
     return rank, world, local_rank
 
 
