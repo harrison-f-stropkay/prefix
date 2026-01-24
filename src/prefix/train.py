@@ -80,6 +80,26 @@ def _maybe_adjust_shm_env() -> None:
     if os.environ.get("PREFIX_DISABLE_NCCL_SHM") == "1":
         os.environ.setdefault("NCCL_SHM_DISABLE", "1")
 
+    if (
+        os.environ.get("PREFIX_DISABLE_UCX_SHM") is None
+        and os.environ.get("PREFIX_DISABLE_NCCL_SHM") is None
+    ):
+        try:
+            shm = os.statvfs("/dev/shm")
+        except OSError:
+            return
+        shm_bytes = shm.f_bsize * shm.f_blocks
+        threshold = 8 * 1024**3
+        if shm_bytes < threshold:
+            LOGGER.warning(
+                "/dev/shm size %.2f GiB is below %d GiB; disabling UCX/NCCL shm transports",
+                shm_bytes / 1024**3,
+                threshold // 1024**3,
+            )
+            os.environ.setdefault("UCX_TLS", "^shm")
+            os.environ.setdefault("UCX_MEMTYPE_CACHE", "n")
+            os.environ.setdefault("NCCL_SHM_DISABLE", "1")
+
 
 def init_dist() -> tuple[int, int, int]:
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
