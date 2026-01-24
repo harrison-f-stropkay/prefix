@@ -88,7 +88,10 @@ def init_dist() -> tuple[int, int, int]:
     _maybe_adjust_shm_env()
     if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
         backend = "nccl" if torch.cuda.is_available() else "gloo"
-        dist.init_process_group(backend=backend)
+        if torch.cuda.is_available():
+            dist.init_process_group(backend=backend, device_id=local_rank)
+        else:
+            dist.init_process_group(backend=backend)
     rank = dist.get_rank() if dist.is_initialized() else 0
     world = dist.get_world_size() if dist.is_initialized() else 1
     return rank, world, local_rank
