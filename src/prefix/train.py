@@ -73,13 +73,24 @@ def set_global_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
+def _maybe_adjust_shm_env() -> None:
+    if os.environ.get("PREFIX_DISABLE_UCX_SHM") == "1":
+        os.environ.setdefault("UCX_TLS", "^shm")
+        os.environ.setdefault("UCX_MEMTYPE_CACHE", "n")
+    if os.environ.get("PREFIX_DISABLE_NCCL_SHM") == "1":
+        os.environ.setdefault("NCCL_SHM_DISABLE", "1")
+
+
 def init_dist() -> tuple[int, int, int]:
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    if torch.cuda.is_available():
+        torch.cuda.set_device(local_rank)
+    _maybe_adjust_shm_env()
     if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
         backend = "nccl" if torch.cuda.is_available() else "gloo"
         dist.init_process_group(backend=backend)
     rank = dist.get_rank() if dist.is_initialized() else 0
     world = dist.get_world_size() if dist.is_initialized() else 1
-    local_rank = int(os.environ.get("LOCAL_RANK", 0))
     return rank, world, local_rank
 
 
