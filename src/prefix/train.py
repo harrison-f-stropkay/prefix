@@ -261,10 +261,24 @@ def write_metadata(output_dir: Path, config: dict[str, Any], run_config_path: Pa
         env_path.write_text(json.dumps(env, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _json_default(value: Any) -> Any:
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (set, frozenset)):
+        return list(value)
+    item = getattr(value, "item", None)
+    if callable(item):
+        try:
+            return item()
+        except Exception:
+            pass
+    return str(value)
+
+
 def append_jsonl(path: Path, record: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, sort_keys=True) + "\n")
+        handle.write(json.dumps(record, sort_keys=True, default=_json_default) + "\n")
 
 
 def log_train_metrics(
@@ -312,7 +326,11 @@ def log_eval_results(
     out_path: Path,
     label: str,
 ) -> None:
-    out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
+    # lm-eval returns numpy dtypes that need a safe JSON fallback.
+    out_path.write_text(
+        json.dumps(results, indent=2, sort_keys=True, default=_json_default),
+        encoding="utf-8",
+    )
     LOGGER.info("%s results saved to %s", label, out_path)
     LOGGER.info("%s results: %s", label, results.get("results"))
     sample_counts = extract_eval_sample_counts(results)
