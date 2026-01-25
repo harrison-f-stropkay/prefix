@@ -5,10 +5,11 @@ from statistics import mean, median
 import matplotlib
 
 matplotlib.use("Agg")
+from typing import cast
+
 import seaborn as sns
 from matplotlib import pyplot as plt
 from transformers import PreTrainedTokenizerFast
-from typing import cast
 
 from prefix.objectives import build_lookup, load_tokenizer
 
@@ -59,13 +60,14 @@ def main():
     print(f"median prefixes: {median_val}")
     print(f"mode prefixes: {mode_val}")
 
-    print("\nTop 20 tokens by prefix count:")
-    top_ids = sorted(range(vocab_size), key=lambda i: counts[i], reverse=True)[:20]
+    N = 800
+    print(f"\nTop {N} tokens by prefix count:")
+    top_ids = sorted(range(vocab_size), key=lambda i: counts[i], reverse=True)[:N]
     for token_id in top_ids:
         prefix_ids, _ = lookup[token_id]
         prefix_strs = [token_strings[prefix_id] for prefix_id in prefix_ids]
         print(f"{token_id}:{token_strings[token_id]!r} -> {len(prefix_ids)}")
-        print(f"  prefixes: {prefix_strs}")
+        # print(f"  prefixes: {prefix_strs}")
 
     token_ids_by_string: dict[str, list[int]] = {}
     for token_id, token_str in enumerate(token_strings):

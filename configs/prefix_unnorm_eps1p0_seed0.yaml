@@ -1,5 +1,5 @@
 run:
-  name: prefix_normalized_tau_1p0_seed_0
+  name: prefix_unnorm_eps1p0_seed0
   seed: 0
 data:
   dataset:
@@ -60,5 +60,6 @@ eval:
   every_steps: 1000
 objective:
   type: prefix_softmax
-  normalized: true
+  normalized: false
   tau: 1.0
+  epsilon: 1.0

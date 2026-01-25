@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 from collections.abc import Iterator
 from pathlib import Path
@@ -14,10 +13,8 @@ import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from prefix.config import load_run_config
-from prefix.eval import evaluate_lm_harness, extract_eval_sample_counts
+from prefix.eval import evaluate_lm_harness
 from prefix.train import (
-    build_amp_context,
     build_dataloader,
     build_model_and_tokenizer,
     build_optimizer_scheduler,
@@ -26,10 +23,11 @@ from prefix.train import (
     infer_run_dir,
     init_dist,
     load_checkpoint_state,
+    log_eval_results,
     resolve_objective,
     restore_rng_state,
     save_checkpoint,
-    set_global_seed,
+    setup_run,
     write_metadata,
 )
 
@@ -94,30 +92,22 @@ def main() -> None:
     output_dir = args.output_dir or infer_run_dir(args.run_config, Path("dry_runs"))
     log_dir = output_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-    configure_logging(log_dir / "dry_run.log")
+    configure_logging(log_dir / "dry-run.log")
     rank, world, local_rank = init_dist()
     LOGGER.info("initialized dist (rank=%s world=%s local_rank=%s)", rank, world, local_rank)
-    LOGGER.info("loading run config %s", args.run_config)
-    config = load_run_config(args.run_config)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type == "cuda":
-        device = torch.device("cuda", local_rank)
-    amp_ctx = build_amp_context(device)
-    LOGGER.info("amp context initialized for %s", device)
-
-    train_cfg = config.get("train") or {}
-    data_cfg = config.get("data") or {}
-    model_cfg = config.get("model") or {}
-    objective = config.get("objective") or {}
-    run_cfg = config.get("run") or {}
-    eval_cfg = config.get("eval") or {}
-    lm_eval_cfg = eval_cfg.get("lm_eval") or {}
-    eval_tasks = list(lm_eval_cfg.get("tasks") or [])
-    eval_limit = lm_eval_cfg.get("limit")
-
-    seed = int(run_cfg.get("seed", 0))
-    set_global_seed(seed)
-    LOGGER.info("set global seed to %s", seed)
+    (
+        config,
+        device,
+        amp_ctx,
+        train_cfg,
+        data_cfg,
+        model_cfg,
+        objective,
+        eval_tasks,
+        eval_limit,
+        _eval_every,
+        seed,
+    ) = setup_run(args.run_config, local_rank=local_rank)
 
     per_device_batch = int(train_cfg.get("per_gpu_batch_size", 1))
     grad_clip = float(train_cfg.get("grad_clip", 0.0))
@@ -204,14 +194,7 @@ def main() -> None:
                 limit=None if eval_limit is None else int(eval_limit),
             )
         out_path = eval_dir / "lm_eval_step1_fast.json"
-        out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
-        counts = extract_eval_sample_counts(results)
-        LOGGER.info("dry-run fast lm-eval results: %s", results.get("results"))
-        LOGGER.info(
-            "dry-run fast lm-eval saved to %s (samples=%s)",
-            out_path,
-            counts.get("total"),
-        )
+        log_eval_results(results=results, out_path=out_path, label="dry-run fast lm-eval")
         target_eval.train()
 
     batch2_before, it = next_batch(it, loader)
@@ -321,14 +304,7 @@ def main() -> None:
                     limit=None,
                 )
             out_path = eval_dir / "lm_eval_dry_run.json"
-            out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
-            counts = extract_eval_sample_counts(results)
-            LOGGER.info("dry-run lm-eval results: %s", results.get("results"))
-            LOGGER.info(
-                "dry-run lm-eval results saved to %s (samples=%s)",
-                out_path,
-                counts.get("total"),
-            )
+            log_eval_results(results=results, out_path=out_path, label="dry-run lm-eval")
     # Cleanly tear down DDP to avoid NCCL shutdown warnings.
     if dist.is_initialized():
         dist.destroy_process_group()

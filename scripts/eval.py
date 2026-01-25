@@ -4,8 +4,6 @@ import logging
 from pathlib import Path
 
 import torch
-from typing import cast
-from transformers import PreTrainedModel
 
 from prefix.config import load_run_config
 from prefix.eval import evaluate_lm_harness

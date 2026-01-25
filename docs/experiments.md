@@ -1,6 +1,6 @@
 # Experiments
 
-Run matrix: CE baseline + label smoothing + prefix-simple + 2 prefix-aware families × 6 temperatures = 15 runs.
+Run matrix: CE baseline + label smoothing + prefix-simple + 2 prefix-aware families × 2 epsilons = 7 runs.
 
 ## How Runs Are Represented
 
@@ -9,13 +9,15 @@ Run matrix: CE baseline + label smoothing + prefix-simple + 2 prefix-aware famil
 
 ## Run Naming
 
-Run configs include a type + seed. We name runs as:
+Run configs include a type + epsilon + seed. We name runs as:
 
 - `ce_seed_0`
 - `label_smoothing_seed_0`
 - `prefix_simple_seed_0`
-- `prefix_unnormalized_tau_0p1_seed_0`
-- `prefix_normalized_tau_2p0_seed_0`
+- `prefix_norm_eps0p1_seed0`
+- `prefix_norm_eps1p0_seed0`
+- `prefix_unnorm_eps0p1_seed0`
+- `prefix_unnorm_eps1p0_seed0`
 
 Outputs are written to the PVC under:
 

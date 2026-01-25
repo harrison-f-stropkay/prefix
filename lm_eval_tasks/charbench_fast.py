@@ -27,7 +27,7 @@ def process_docs(
 
     rng = random.Random(seed)
     selected: list[list[int]] = []
-    for task_name, indices in task_to_indices.items():
+    for _task_name, indices in task_to_indices.items():
         rng.shuffle(indices)
         selected.append(indices[:per_task])
 
