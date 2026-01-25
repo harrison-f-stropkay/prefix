@@ -49,16 +49,10 @@ def find_charbench_key(results: dict) -> str | None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot training + eval metrics by tokens_seen.")
     parser.add_argument("--runs-dir", type=Path, default=REPO_ROOT / "runs")
-    parser.add_argument(
-        "--eval-root",
-        type=Path,
-        help="Alternate root that contains run eval JSONs (e.g. a synced runs directory).",
-    )
     parser.add_argument("--out", type=Path, default=REPO_ROOT / "figures" / "metrics.png")
     args = parser.parse_args()
 
     runs_dir = args.runs_dir
-    eval_root = args.eval_root
     if not runs_dir.exists():
         raise SystemExit(f"Runs dir not found: {runs_dir}")
 
@@ -96,10 +90,6 @@ def main() -> None:
             eval_path = Path(record["path"])
             if not eval_path.is_absolute():
                 eval_path = REPO_ROOT / eval_path
-            if not eval_path.exists() and eval_root is not None:
-                alt_path = eval_root / run_dir.name / "eval" / Path(record["path"]).name
-                if alt_path.exists():
-                    eval_path = alt_path
             if not eval_path.exists():
                 continue
             results = load_json(eval_path).get("results") or {}
