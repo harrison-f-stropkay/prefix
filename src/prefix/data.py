@@ -114,8 +114,8 @@ def create_mds(data_cfg: dict[str, Any]) -> None:
 
 
 def collate_input_ids(batch: list[dict[str, Any]]) -> dict[str, torch.Tensor]:
-    input_ids = [sample["input_ids"] for sample in batch]
-    return {"input_ids": torch.as_tensor(input_ids, dtype=torch.int64)}
+    input_ids = np.asarray([sample["input_ids"] for sample in batch], dtype=np.int64)
+    return {"input_ids": torch.from_numpy(input_ids)}
 
 
 def build_streaming_dataloader(

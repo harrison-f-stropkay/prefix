@@ -260,6 +260,7 @@ def main() -> None:
         )
         if slow_tasks:
             LOGGER.info("dry-run skipping slow eval; fast eval runs after step 1")
+        LOGGER.info("dry-run complete")
     # Cleanly tear down DDP to avoid NCCL shutdown warnings.
     if dist.is_initialized():
         dist.destroy_process_group()
