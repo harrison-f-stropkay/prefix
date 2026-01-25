@@ -522,7 +522,6 @@ def compute_loss(
         return F.cross_entropy(
             logits.view(-1, logits.size(-1)),
             flat_labels,
-            reduction="mean",
         )
     if objective_type == "label_smoothing":
         return F.cross_entropy(
