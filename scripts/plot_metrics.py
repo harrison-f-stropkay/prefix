@@ -173,14 +173,35 @@ def main() -> None:
             }
         )
 
+    composite_smoothed: list[dict] = []
+    grouped: dict[str, list[dict]] = {}
+    for row in composite_rows:
+        grouped.setdefault(row["model"], []).append(row)
+    for model, rows in grouped.items():
+        rows.sort(key=lambda r: r["tokens_seen"])
+        for i in range(0, len(rows), 5):
+            chunk = rows[i : i + 5]
+            if len(chunk) < 5:
+                continue
+            avg_tokens = sum(item["tokens_seen"] for item in chunk) / 5.0
+            avg_value = sum(item["value"] for item in chunk) / 5.0
+            composite_smoothed.append(
+                {
+                    "model": model,
+                    "tokens_seen": avg_tokens,
+                    "value": avg_value,
+                }
+            )
+
     metrics = [
         ("train_loss", train_rows),
         ("lm_eval_composite", composite_rows),
+        ("lm_eval_composite_smoothed", composite_smoothed),
         ("charbench_exact_match", [r for r in eval_rows if r["metric"] == "charbench_exact_match"]),
     ]
 
     sns.set_theme(style="whitegrid")
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4), sharex=False)
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=False)
     axes = axes.flatten()
 
     for idx, (title, rows) in enumerate(metrics):
