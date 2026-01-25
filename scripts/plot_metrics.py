@@ -99,7 +99,10 @@ def main() -> None:
                     "model": run_dir.name,
                     "tokens_seen": tokens_seen,
                     "metric": "arc_easy",
-                    "value": resolve_metric(results.get("arc_easy", {}), ["acc,none", "acc_norm,none"]),
+                    "value": resolve_metric(
+                        results.get("arc_easy", {}),
+                        ["acc_norm,none", "acc,none"],
+                    ),
                 }
             )
             eval_rows.append(
@@ -108,7 +111,8 @@ def main() -> None:
                     "tokens_seen": tokens_seen,
                     "metric": "hellaswag",
                     "value": resolve_metric(
-                        results.get("hellaswag", {}), ["acc,none", "acc_norm,none"]
+                        results.get("hellaswag", {}),
+                        ["acc_norm,none", "acc,none"],
                     ),
                 }
             )
@@ -117,7 +121,10 @@ def main() -> None:
                     "model": run_dir.name,
                     "tokens_seen": tokens_seen,
                     "metric": "piqa",
-                    "value": resolve_metric(results.get("piqa", {}), ["acc,none", "acc_norm,none"]),
+                    "value": resolve_metric(
+                        results.get("piqa", {}),
+                        ["acc_norm,none", "acc,none"],
+                    ),
                 }
             )
             eval_rows.append(
@@ -126,7 +133,8 @@ def main() -> None:
                     "tokens_seen": tokens_seen,
                     "metric": "winogrande",
                     "value": resolve_metric(
-                        results.get("winogrande", {}), ["acc,none", "acc_norm,none"]
+                        results.get("winogrande", {}),
+                        ["acc_norm,none", "acc,none"],
                     ),
                 }
             )
@@ -143,6 +151,28 @@ def main() -> None:
                     }
                 )
 
+    composite_rows: list[dict] = []
+    composite_bins: dict[tuple[str, int], list[float]] = {}
+    for row in eval_rows:
+        if row["metric"] not in {"arc_easy", "hellaswag", "piqa", "winogrande"}:
+            continue
+        value = row["value"]
+        if value is None:
+            continue
+        key = (row["model"], row["tokens_seen"])
+        composite_bins.setdefault(key, []).append(value)
+    for (model, tokens_seen), values in composite_bins.items():
+        if len(values) != 4:
+            continue
+        composite_rows.append(
+            {
+                "model": model,
+                "tokens_seen": tokens_seen,
+                "metric": "lm_eval_composite",
+                "value": sum(values) / 4.0,
+            }
+        )
+
     metrics = [
         ("train_loss", train_rows),
         ("arc_easy", [r for r in eval_rows if r["metric"] == "arc_easy"]),
@@ -150,10 +180,11 @@ def main() -> None:
         ("piqa", [r for r in eval_rows if r["metric"] == "piqa"]),
         ("winogrande", [r for r in eval_rows if r["metric"] == "winogrande"]),
         ("charbench_exact_match", [r for r in eval_rows if r["metric"] == "charbench_exact_match"]),
+        ("lm_eval_composite", composite_rows),
     ]
 
     sns.set_theme(style="whitegrid")
-    fig, axes = plt.subplots(2, 3, figsize=(14, 8), sharex=False)
+    fig, axes = plt.subplots(3, 3, figsize=(15, 10), sharex=False)
     axes = axes.flatten()
 
     for idx, (title, rows) in enumerate(metrics):
@@ -180,6 +211,9 @@ def main() -> None:
         ax.set_ylabel("value")
         if idx != 0 and ax.get_legend() is not None:
             ax.get_legend().remove()
+
+    for ax in axes[len(metrics) :]:
+        ax.axis("off")
 
     fig.tight_layout()
     args.out.parent.mkdir(parents=True, exist_ok=True)
