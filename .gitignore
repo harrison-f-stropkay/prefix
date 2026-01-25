@@ -214,6 +214,3 @@ dry_runs/
 checkpoints/
 eval/
 logs/
-!runs/**/metrics.jsonl
-!runs/**/eval/
-!runs/**/eval/*.json
