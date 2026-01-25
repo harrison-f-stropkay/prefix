@@ -190,6 +190,21 @@ def setup_run(
     )
 
 
+def select_eval_tasks(tasks: list[str], *, charbench_variant: str) -> list[str]:
+    if not tasks:
+        return []
+    if charbench_variant not in {"fast", "slow"}:
+        raise ValueError(f"Unexpected charbench variant: {charbench_variant}")
+    replacement = "charbench_fast" if charbench_variant == "fast" else "charbench_slow"
+    updated: list[str] = []
+    for task in tasks:
+        if task == "charbench":
+            updated.append(replacement)
+        else:
+            updated.append(task)
+    return updated
+
+
 def infer_run_dir(run_config: Path, runs_root: Path) -> Path:
     return runs_root / run_config.stem
 
@@ -657,6 +672,8 @@ def main() -> None:
         eval_every,
         seed,
     ) = setup_run(args.run_config, local_rank=local_rank)
+    fast_tasks = select_eval_tasks(tasks, charbench_variant="fast")
+    slow_tasks = select_eval_tasks(tasks, charbench_variant="slow")
 
     per_device_batch = int(train_cfg.get("per_gpu_batch_size", 1))
     max_steps = int(train_cfg.get("max_steps", 100))
@@ -794,7 +811,7 @@ def main() -> None:
                 rank=rank,
                 world=world,
             )
-        if rank == 0 and tasks and eval_every > 0 and step % eval_every == 0:
+        if rank == 0 and fast_tasks and eval_every > 0 and step % eval_every == 0:
             target = model.module if isinstance(model, DDP) else model
             target.eval()
             eval_dir = output_dir / "eval"
@@ -802,7 +819,7 @@ def main() -> None:
             results = evaluate_lm_harness(
                 target,
                 tokenizer,
-                tasks,
+                fast_tasks,
                 batch_size=1,
                 device=device,
                 limit=None if eval_limit is None else int(eval_limit),
@@ -830,12 +847,18 @@ def main() -> None:
 
     if dist.is_initialized():
         dist.barrier()
-    if rank == 0 and tasks and last_eval_step != step:
+    if rank == 0 and slow_tasks and last_eval_step != step:
         target = model.module if isinstance(model, DDP) else model
         target.eval()
         eval_dir = output_dir / "eval"
         eval_dir.mkdir(parents=True, exist_ok=True)
-        results = evaluate_lm_harness(target, tokenizer, tasks, batch_size=1, device=device)
+        results = evaluate_lm_harness(
+            target,
+            tokenizer,
+            slow_tasks,
+            batch_size=1,
+            device=device,
+        )
         out_path = eval_dir / "lm_eval_final.json"
         log_eval_results(results=results, out_path=out_path, label="lm-eval")
         log_eval_metrics(metrics_path, step=step, path=out_path, results=results)

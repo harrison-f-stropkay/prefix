@@ -27,6 +27,7 @@ from prefix.train import (
     resolve_objective,
     restore_rng_state,
     save_checkpoint,
+    select_eval_tasks,
     setup_run,
     write_metadata,
 )
@@ -108,6 +109,8 @@ def main() -> None:
         _eval_every,
         seed,
     ) = setup_run(args.run_config, local_rank=local_rank)
+    fast_tasks = select_eval_tasks(eval_tasks, charbench_variant="fast")
+    slow_tasks = select_eval_tasks(eval_tasks, charbench_variant="slow")
 
     per_device_batch = int(train_cfg.get("per_gpu_batch_size", 1))
     grad_clip = float(train_cfg.get("grad_clip", 0.0))
@@ -179,7 +182,7 @@ def main() -> None:
         rank=rank,
         world=world,
     )
-    if rank == 0 and eval_tasks:
+    if rank == 0 and fast_tasks:
         eval_dir = output_dir / "eval"
         eval_dir.mkdir(parents=True, exist_ok=True)
         target_eval = model.module if isinstance(model, DDP) else model
@@ -188,7 +191,7 @@ def main() -> None:
             results = evaluate_lm_harness(
                 target_eval,
                 tokenizer,
-                eval_tasks,
+                fast_tasks,
                 batch_size=1,
                 device=device,
                 limit=None if eval_limit is None else int(eval_limit),
@@ -289,7 +292,7 @@ def main() -> None:
             loss2_before,
             loss2_after,
         )
-        if eval_tasks:
+        if slow_tasks:
             eval_dir = output_dir / "eval"
             eval_dir.mkdir(parents=True, exist_ok=True)
             target = resumed_model.module if isinstance(resumed_model, DDP) else resumed_model
@@ -298,7 +301,7 @@ def main() -> None:
                 results = evaluate_lm_harness(
                     target,
                     tokenizer,
-                    eval_tasks,
+                    slow_tasks,
                     batch_size=1,
                     device=device,
                     limit=None,
