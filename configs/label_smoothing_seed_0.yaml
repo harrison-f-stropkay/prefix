@@ -1,7 +1,6 @@
 run:
   name: label_smoothing_seed_0
   seed: 0
-  type: label_smoothing
 data:
   dataset:
     hf_id: HuggingFaceFW/fineweb-edu
@@ -45,17 +44,20 @@ train:
   warmup_steps: 1000
   max_tokens: 10000000000
   adam_betas:
-    - 0.9
-    - 0.95
+  - 0.9
+  - 0.95
   adam_eps: 1.0e-08
   grad_clip: 1.0
 eval:
   lm_eval:
     tasks:
-      - piqa
-      - winogrande
-      - arc_easy
-      - hellaswag
+    - piqa
+    - winogrande
+    - arc_easy
+    - hellaswag
+    - charbench
+    limit: 100
+  every_steps: 1000
 objective:
   type: label_smoothing
   epsilon: 0.1

@@ -8,6 +8,7 @@ matplotlib.use("Agg")
 import seaborn as sns
 from matplotlib import pyplot as plt
 from transformers import PreTrainedTokenizerFast
+from typing import cast
 
 from prefix.objectives import build_lookup, load_tokenizer
 
@@ -42,7 +43,7 @@ def main():
     mode_val = max(freq.items(), key=lambda item: item[1])[0]
     min_val = min(counts)
     max_val = max(counts)
-    token_strings = [tokenizer.convert_ids_to_tokens(i) for i in range(vocab_size)]
+    token_strings = [cast(str, tokenizer.convert_ids_to_tokens(i)) for i in range(vocab_size)]
 
     plt.figure(figsize=(7.0, 3.5))
     sns.histplot(counts, bins=range(min_val, max_val))
@@ -68,7 +69,11 @@ def main():
 
     token_ids_by_string: dict[str, list[int]] = {}
     for token_id, token_str in enumerate(token_strings):
-        token_ids_by_string.setdefault(token_str, []).append(token_id)
+        token_ids = token_ids_by_string.get(token_str)
+        if token_ids is None:
+            token_ids = []
+            token_ids_by_string[token_str] = token_ids
+        token_ids.append(token_id)
 
     targets = [" personal", " promoter", " tactful", " banana"]
     targets += [t.lstrip(" ") for t in targets]

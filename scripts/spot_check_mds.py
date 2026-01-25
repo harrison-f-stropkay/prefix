@@ -43,7 +43,10 @@ def main() -> None:
     )
 
     dataset = loader.dataset
-    logging.info("dataset size: %s", len(dataset))
+    dataset_size = getattr(dataset, "num_samples", None)
+    if dataset_size is None:
+        dataset_size = "unknown"
+    logging.info("dataset size: %s", dataset_size)
     logging.info("state_dict: %s", loader.state_dict())
 
     if not args.decode:

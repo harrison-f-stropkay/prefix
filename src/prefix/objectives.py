@@ -1,8 +1,9 @@
 """Objective utilities for prefix-aware training."""
 
 import math
+from typing import Any
 
-import marisa_trie
+import marisa_trie  # type: ignore[import-not-found]
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 
@@ -10,7 +11,7 @@ def load_tokenizer(tokenizer_hf_id: str) -> PreTrainedTokenizerFast:
     return AutoTokenizer.from_pretrained(tokenizer_hf_id, use_fast=True)
 
 
-def build_lookup(tokenizer: PreTrainedTokenizerFast) -> list[tuple[list[int], list[int]]]:
+def build_lookup(tokenizer: Any) -> list[tuple[list[int], list[int]]]:
     vocab_size = len(tokenizer)
     token_strings = [tokenizer.convert_ids_to_tokens(token_id) for token_id in range(vocab_size)]
     # Lengths are in byte-level token space (token string length), matching model units.
@@ -20,7 +21,11 @@ def build_lookup(tokenizer: PreTrainedTokenizerFast) -> list[tuple[list[int], li
     for token_id, token_str in enumerate(token_strings):
         if token_id in special_ids or token_str == "":
             continue
-        token_ids_by_string.setdefault(token_str, []).append(token_id)
+        token_ids = token_ids_by_string.get(token_str)
+        if token_ids is None:
+            token_ids = []
+            token_ids_by_string[token_str] = token_ids
+        token_ids.append(token_id)
     trie = marisa_trie.Trie(token_ids_by_string.keys())
 
     prefix_lookup: list[tuple[list[int], list[int]]] = [([], []) for _ in range(vocab_size)]

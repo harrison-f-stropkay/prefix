@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 from collections.abc import Iterator
 from pathlib import Path
@@ -14,6 +15,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from prefix.config import load_run_config
+from prefix.eval import evaluate_lm_harness, extract_eval_sample_counts
 from prefix.train import (
     build_amp_context,
     build_dataloader,
@@ -93,22 +95,29 @@ def main() -> None:
     log_dir = output_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     configure_logging(log_dir / "dry_run.log")
-    config = load_run_config(args.run_config)
-
     rank, world, local_rank = init_dist()
+    LOGGER.info("initialized dist (rank=%s world=%s local_rank=%s)", rank, world, local_rank)
+    LOGGER.info("loading run config %s", args.run_config)
+    config = load_run_config(args.run_config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == "cuda":
         device = torch.device("cuda", local_rank)
     amp_ctx = build_amp_context(device)
+    LOGGER.info("amp context initialized for %s", device)
 
     train_cfg = config.get("train") or {}
     data_cfg = config.get("data") or {}
     model_cfg = config.get("model") or {}
     objective = config.get("objective") or {}
     run_cfg = config.get("run") or {}
+    eval_cfg = config.get("eval") or {}
+    lm_eval_cfg = eval_cfg.get("lm_eval") or {}
+    eval_tasks = list(lm_eval_cfg.get("tasks") or [])
+    eval_limit = lm_eval_cfg.get("limit")
 
     seed = int(run_cfg.get("seed", 0))
     set_global_seed(seed)
+    LOGGER.info("set global seed to %s", seed)
 
     per_device_batch = int(train_cfg.get("per_gpu_batch_size", 1))
     grad_clip = float(train_cfg.get("grad_clip", 0.0))
@@ -128,16 +137,19 @@ def main() -> None:
     )
     model, tokenizer = build_model_and_tokenizer(model_cfg, data_cfg, device=device)
     tokens_per_step = per_device_batch * world * max(seq_len - 1, 1)
+    LOGGER.info("tokens per step: %s", tokens_per_step)
     optimizer, scheduler, total_steps = build_optimizer_scheduler(
         model,
         train_cfg,
         tokens_per_step=tokens_per_step,
     )
+    LOGGER.info("optimizer/scheduler ready (total_steps=%s)", total_steps)
     objective_type, epsilon, prefix_tables = resolve_objective(
         objective,
         tokenizer=tokenizer,
         device=device,
     )
+    LOGGER.info("objective resolved: %s (epsilon=%s)", objective_type, epsilon)
 
     checkpoint_dir = output_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -177,6 +189,30 @@ def main() -> None:
         rank=rank,
         world=world,
     )
+    if rank == 0 and eval_tasks:
+        eval_dir = output_dir / "eval"
+        eval_dir.mkdir(parents=True, exist_ok=True)
+        target_eval = model.module if isinstance(model, DDP) else model
+        target_eval.eval()
+        with torch.no_grad():
+            results = evaluate_lm_harness(
+                target_eval,
+                tokenizer,
+                eval_tasks,
+                batch_size=1,
+                device=device,
+                limit=None if eval_limit is None else int(eval_limit),
+            )
+        out_path = eval_dir / "lm_eval_step1_fast.json"
+        out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
+        counts = extract_eval_sample_counts(results)
+        LOGGER.info("dry-run fast lm-eval results: %s", results.get("results"))
+        LOGGER.info(
+            "dry-run fast lm-eval saved to %s (samples=%s)",
+            out_path,
+            counts.get("total"),
+        )
+        target_eval.train()
 
     batch2_before, it = next_batch(it, loader)
     loss2_before, tokens = run_step(
@@ -270,6 +306,29 @@ def main() -> None:
             loss2_before,
             loss2_after,
         )
+        if eval_tasks:
+            eval_dir = output_dir / "eval"
+            eval_dir.mkdir(parents=True, exist_ok=True)
+            target = resumed_model.module if isinstance(resumed_model, DDP) else resumed_model
+            target.eval()
+            with torch.no_grad():
+                results = evaluate_lm_harness(
+                    target,
+                    tokenizer,
+                    eval_tasks,
+                    batch_size=1,
+                    device=device,
+                    limit=None,
+                )
+            out_path = eval_dir / "lm_eval_dry_run.json"
+            out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
+            counts = extract_eval_sample_counts(results)
+            LOGGER.info("dry-run lm-eval results: %s", results.get("results"))
+            LOGGER.info(
+                "dry-run lm-eval results saved to %s (samples=%s)",
+                out_path,
+                counts.get("total"),
+            )
     # Cleanly tear down DDP to avoid NCCL shutdown warnings.
     if dist.is_initialized():
         dist.destroy_process_group()

@@ -77,6 +77,8 @@ eval:
       - winogrande
       - arc_easy
       - hellaswag
+    limit: 100
+  every_steps: 1000
 objective:
   type: cross_entropy
 ```

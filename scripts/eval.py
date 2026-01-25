@@ -4,9 +4,11 @@ import logging
 from pathlib import Path
 
 import torch
+from typing import cast
+from transformers import PreTrainedModel
 
 from prefix.config import load_run_config
-from prefix.eval import run_lm_eval
+from prefix.eval import evaluate_lm_harness
 from prefix.modeling import build_llama_model
 from prefix.objectives import load_tokenizer
 
@@ -39,11 +41,12 @@ def main() -> None:
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tokenizer = load_tokenizer(config["data"]["tokenizer"]["hf_id"])
-    model = build_llama_model(config["model"], vocab_size=len(tokenizer)).to(device)
+    model = build_llama_model(config["model"], vocab_size=len(tokenizer))
+    model = model.to(device)  # type: ignore[arg-type]
     state = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     model.load_state_dict(state["model"])
     model.eval()
-    results = run_lm_eval(
+    results = evaluate_lm_harness(
         model,
         tokenizer,
         tasks,

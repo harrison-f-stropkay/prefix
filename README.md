@@ -142,6 +142,12 @@ uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml
 bash runai/submit_train.sh --dry-run configs/ce_seed_0.yaml
 ```
 
+## Tail dry-run logs:
+
+```bash
+runai training standard logs prefix-dry-run-ce-seed-0 --tail=200 --follow
+```
+
 ## Troubleshooting (Cluster)
 
 - SIGBUS during dry-run on `configs/ce_seed_0.yaml` was reproduced to a single-process `StreamingDataset` read on the PVC `data/mds` directory (no DDP required).

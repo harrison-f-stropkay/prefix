@@ -100,3 +100,7 @@ We should use a benchmark that evaluates performance on character-level tasks.
   - https://huggingface.co/datasets/omriuz/CharBench
   - Came out after fineweb-edu, so not worried about contamination
   - Large: 175k questions
+
+## Run:AI
+
+- Use `--large-shm` in `runai/submit_train.sh` so `/dev/shm` is large enough for UCX/NCCL shared-memory transports; otherwise, UCX can SIGBUS in multi-rank runs.
