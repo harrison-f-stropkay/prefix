@@ -192,11 +192,6 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
-# Project artifacts
-data/
-runs/
-dry_runs/
-
 # PyPI configuration file
 .pypirc
 
@@ -211,3 +206,9 @@ dry_runs/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project artifacts
+data/
+checkpoints/
+eval/
+logs/
