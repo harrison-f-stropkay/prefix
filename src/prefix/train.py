@@ -61,6 +61,15 @@ def configure_logging(log_path: Path | None = None) -> None:
             record.rank = LOG_RANK
             return True
 
+    old_factory = logging.getLogRecordFactory()
+
+    def record_factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
+        record = old_factory(*args, **kwargs)
+        if not hasattr(record, "rank"):
+            record.rank = LOG_RANK
+        return record
+
+    logging.setLogRecordFactory(record_factory)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s [rank=%(rank)s] %(name)s: %(message)s",
@@ -125,6 +134,60 @@ def build_amp_context(device: torch.device) -> Any:
         # H100s run best with bf16 autocast (range + throughput without fp16 underflow).
         return torch.autocast(device_type="cuda", dtype=torch.bfloat16)
     return nullcontext()
+
+
+def setup_run(
+    run_config_path: Path,
+    *,
+    local_rank: int,
+) -> tuple[
+    dict[str, Any],
+    torch.device,
+    Any,
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+    list[str],
+    int | None,
+    int,
+    int,
+]:
+    LOGGER.info("loading run config %s", run_config_path)
+    config = load_run_config(run_config_path)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type == "cuda":
+        device = torch.device("cuda", local_rank)
+    amp_ctx = build_amp_context(device)
+    LOGGER.info("amp context initialized for %s", device)
+
+    train_cfg = config.get("train") or {}
+    data_cfg = config.get("data") or {}
+    model_cfg = config.get("model") or {}
+    objective = config.get("objective") or {}
+    eval_cfg = config.get("eval") or {}
+    lm_eval_cfg = eval_cfg.get("lm_eval") or {}
+    eval_tasks = list(lm_eval_cfg.get("tasks") or [])
+    eval_limit = lm_eval_cfg.get("limit")
+    eval_every = int(eval_cfg.get("every_steps") or 0)
+
+    run_cfg = config.get("run") or {}
+    seed = int(run_cfg.get("seed", 0))
+    set_global_seed(seed)
+    LOGGER.info("set global seed to %s", seed)
+    return (
+        config,
+        device,
+        amp_ctx,
+        train_cfg,
+        data_cfg,
+        model_cfg,
+        objective,
+        eval_tasks,
+        eval_limit,
+        eval_every,
+        seed,
+    )
 
 
 def infer_run_dir(run_config: Path, runs_root: Path) -> Path:
@@ -202,6 +265,58 @@ def append_jsonl(path: Path, record: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+def log_train_metrics(
+    metrics_path: Path,
+    *,
+    step: int,
+    loss: float,
+    tokens_seen: int,
+    lr: float,
+) -> None:
+    append_jsonl(
+        metrics_path,
+        {
+            "type": "train",
+            "step": step,
+            "loss": loss,
+            "tokens_seen": tokens_seen,
+            "lr": lr,
+        },
+    )
+
+
+def log_eval_metrics(
+    metrics_path: Path,
+    *,
+    step: int,
+    path: Path,
+    results: dict[str, Any],
+) -> None:
+    sample_counts = extract_eval_sample_counts(results)
+    append_jsonl(
+        metrics_path,
+        {
+            "type": "eval",
+            "step": step,
+            "path": str(path),
+            "num_samples": sample_counts.get("total"),
+        },
+    )
+
+
+def log_eval_results(
+    *,
+    results: dict[str, Any],
+    out_path: Path,
+    label: str,
+) -> None:
+    out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
+    LOGGER.info("%s results saved to %s", label, out_path)
+    LOGGER.info("%s results: %s", label, results.get("results"))
+    sample_counts = extract_eval_sample_counts(results)
+    LOGGER.info("%s samples: %s", label, sample_counts.get("total"))
 
 
 def prune_checkpoints(checkpoint_dir: Path, keep_last: int) -> None:
@@ -511,22 +626,19 @@ def main() -> None:
     configure_logging(log_dir / "train.log")
     rank, world, local_rank = init_dist()
     LOGGER.info("initialized dist (rank=%s world=%s local_rank=%s)", rank, world, local_rank)
-    LOGGER.info("loading run config %s", args.run_config)
-    config = load_run_config(args.run_config)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type == "cuda":
-        device = torch.device("cuda", local_rank)
-    amp_ctx = build_amp_context(device)
-    LOGGER.info("amp context initialized for %s", device)
-
-    train_cfg = config.get("train") or {}
-    data_cfg = config.get("data") or {}
-    model_cfg = config.get("model") or {}
-    objective = config.get("objective") or {}
-    run_cfg = config.get("run") or {}
-    seed = int(run_cfg.get("seed", 0))
-    set_global_seed(seed)
-    LOGGER.info("set global seed to %s", seed)
+    (
+        config,
+        device,
+        amp_ctx,
+        train_cfg,
+        data_cfg,
+        model_cfg,
+        objective,
+        tasks,
+        eval_limit,
+        eval_every,
+        seed,
+    ) = setup_run(args.run_config, local_rank=local_rank)
 
     per_device_batch = int(train_cfg.get("per_gpu_batch_size", 1))
     max_steps = int(train_cfg.get("max_steps", 100))
@@ -559,11 +671,7 @@ def main() -> None:
         device=device,
     )
     LOGGER.info("objective resolved: %s (epsilon=%s)", objective_type, epsilon)
-    eval_cfg = config.get("eval") or {}
-    lm_eval_cfg = eval_cfg.get("lm_eval") or {}
-    tasks = list(lm_eval_cfg.get("tasks") or [])
-    eval_limit = lm_eval_cfg.get("limit")
-    eval_every = int(eval_cfg.get("every_steps") or 0)
+    # eval_every already computed in setup_run
 
     checkpoint_dir = output_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -647,15 +755,12 @@ def main() -> None:
         if rank == 0 and step % 10 == 0:
             LOGGER.info("step %s loss %.4f", step, float(loss))
         if rank == 0:
-            append_jsonl(
+            log_train_metrics(
                 metrics_path,
-                {
-                    "type": "train",
-                    "step": step,
-                    "loss": float(loss.detach().cpu()),
-                    "tokens_seen": tokens_seen,
-                    "lr": optimizer.param_groups[0]["lr"],
-                },
+                step=step,
+                loss=float(loss.detach().cpu()),
+                tokens_seen=tokens_seen,
+                lr=optimizer.param_groups[0]["lr"],
             )
         if checkpoint_enabled and save_every and step % save_every == 0:
             target = model.module if isinstance(model, DDP) else model
@@ -685,20 +790,8 @@ def main() -> None:
                 limit=None if eval_limit is None else int(eval_limit),
             )
             out_path = eval_dir / f"lm_eval_step{step}.json"
-            out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
-            LOGGER.info("lm-eval results saved to %s", out_path)
-            LOGGER.info("lm-eval results: %s", results.get("results"))
-            sample_counts = extract_eval_sample_counts(results)
-            LOGGER.info("lm-eval samples: %s", sample_counts.get("total"))
-            append_jsonl(
-                metrics_path,
-                {
-                    "type": "eval",
-                    "step": step,
-                    "path": str(out_path),
-                    "num_samples": sample_counts.get("total"),
-                },
-            )
+            log_eval_results(results=results, out_path=out_path, label="lm-eval")
+            log_eval_metrics(metrics_path, step=step, path=out_path, results=results)
             last_eval_step = step
             target.train()
 
@@ -726,20 +819,8 @@ def main() -> None:
         eval_dir.mkdir(parents=True, exist_ok=True)
         results = evaluate_lm_harness(target, tokenizer, tasks, batch_size=1, device=device)
         out_path = eval_dir / "lm_eval_final.json"
-        out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
-        LOGGER.info("lm-eval results saved to %s", out_path)
-        LOGGER.info("lm-eval results: %s", results.get("results"))
-        sample_counts = extract_eval_sample_counts(results)
-        LOGGER.info("lm-eval samples: %s", sample_counts.get("total"))
-        append_jsonl(
-            metrics_path,
-            {
-                "type": "eval",
-                "step": step,
-                "path": str(out_path),
-                "num_samples": sample_counts.get("total"),
-            },
-        )
+        log_eval_results(results=results, out_path=out_path, label="lm-eval")
+        log_eval_metrics(metrics_path, step=step, path=out_path, results=results)
     if dist.is_initialized():
         dist.barrier()
         # Cleanly tear down DDP to avoid NCCL shutdown warnings.
