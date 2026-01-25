@@ -147,7 +147,7 @@ uv run python scripts/plot_prefix_counts.py --hf-id meta-llama/Meta-Llama-3-8
 bash runai/submit_train.sh --dry-run configs/ce_seed_0.yaml
 ```
 
-## Training run:
+## Preliminary experiments (7 runs):
 
 ```bash
 bash runai/submit_train.sh configs/ce_seed_0.yaml
