@@ -20,7 +20,8 @@ metric_list:
 filter_list:
   - name: none
     filter:
-      - [regex, {"regex_pattern": "(\\-?\\d+)"}]
-      - [take_first, null]
+      - function: regex
+        regex_pattern: "(\\-?\\d+)"
+      - function: take_first
 metadata:
   version: 0.0
