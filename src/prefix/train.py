@@ -531,6 +531,9 @@ def compute_loss(
         )
     if prefix_tables is None:
         raise RuntimeError("Prefix tables were not initialized.")
+    # We could use F.cross_entropy with soft targets, but that would require
+    # materializing a dense target distribution over the full vocab per token.
+    # Using sparse prefix weights keeps this tractable for large vocab sizes.
     log_probs = F.log_softmax(logits.view(-1, logits.size(-1)), dim=-1)
     prefix_ids, prefix_weights_tensor, prefix_counts = prefix_tables
     prefix_ids_batch = prefix_ids[flat_labels]
