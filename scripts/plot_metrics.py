@@ -175,16 +175,12 @@ def main() -> None:
 
     metrics = [
         ("train_loss", train_rows),
-        ("arc_easy", [r for r in eval_rows if r["metric"] == "arc_easy"]),
-        ("hellaswag", [r for r in eval_rows if r["metric"] == "hellaswag"]),
-        ("piqa", [r for r in eval_rows if r["metric"] == "piqa"]),
-        ("winogrande", [r for r in eval_rows if r["metric"] == "winogrande"]),
-        ("charbench_exact_match", [r for r in eval_rows if r["metric"] == "charbench_exact_match"]),
         ("lm_eval_composite", composite_rows),
+        ("charbench_exact_match", [r for r in eval_rows if r["metric"] == "charbench_exact_match"]),
     ]
 
     sns.set_theme(style="whitegrid")
-    fig, axes = plt.subplots(3, 3, figsize=(15, 10), sharex=False)
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4), sharex=False)
     axes = axes.flatten()
 
     for idx, (title, rows) in enumerate(metrics):
