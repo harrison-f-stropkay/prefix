@@ -477,6 +477,26 @@ def build_model_and_tokenizer(
     tokenizer = load_tokenizer(data_cfg["tokenizer"]["hf_id"])
     LOGGER.info("building model on %s", device)
     model = build_llama_model(model_cfg, vocab_size=len(tokenizer))
+    if not dist.is_initialized() or dist.get_rank() == 0:
+        total_params = sum(p.numel() for p in model.parameters())
+        embed_params = 0
+        seen = set()
+        for embed in (model.get_input_embeddings(), model.get_output_embeddings()):
+            if embed is None:
+                continue
+            weight = getattr(embed, "weight", None)
+            if weight is None:
+                continue
+            if id(weight) in seen:
+                continue
+            seen.add(id(weight))
+            embed_params += weight.numel()
+        non_embed_params = total_params - embed_params
+        LOGGER.info(
+            "model params: total=%s non_embedding=%s",
+            total_params,
+            non_embed_params,
+        )
     model = model.to(device)  # type: ignore[arg-type]
     if dist.is_initialized():
         model = DDP(model, device_ids=[device.index] if device.type == "cuda" else None)

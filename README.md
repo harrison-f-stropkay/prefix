@@ -1,6 +1,6 @@
 # Prefix-Aware LM Training
 
-This repository tests whether training a Llama-3–style model (~500M parameters) with a custom **prefix-aware** label-smoothing objective can improve downstream performance.
+This repository tests whether training a Llama-3–style model (~100M parameters) with a custom **prefix-aware** label-smoothing objective can improve downstream performance.
 
 Label smoothing is a regularization technique that replaces hard one-hot labels with softer targets by putting $1-\varepsilon$ probability on the correct class and spreading the remaining $\varepsilon$ evenly across the other $K-1$ classes (each gets $\varepsilon/(K-1)$). This technique often improves generalization in classification tasks.
 
@@ -10,7 +10,7 @@ We hypothesize that relative to traditional label smoothing, this approach will 
 
 ## Experimental Design
 
-We sample our data from FineWeb-Edu, found [here](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu). Specifically, we gather data from the 100b token sample (`sample/100BT`), and we train our models to 20b tokens. To detect prefixes and string lengths, we operate in byte-level token space (i.e., tokenizer vocab pieces) to avoid lossy UTF-8 decoding.
+We sample our data from FineWeb-Edu, found [here](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu). Specifically, we gather data from the 100b token sample (`sample/100BT`), and we train our models to 2b tokens. To detect prefixes and string lengths, we operate in byte-level token space (i.e., tokenizer vocab pieces) to avoid lossy UTF-8 decoding.
 
 All training runs are identical except for the training objective. We compare the following families of training objectives.
 
