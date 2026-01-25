@@ -104,3 +104,11 @@ We should use a benchmark that evaluates performance on character-level tasks.
 ## Run:AI
 
 - Use `--large-shm` in `runai/submit_train.sh` so `/dev/shm` is large enough for UCX/NCCL shared-memory transports; otherwise, UCX can SIGBUS in multi-rank runs.
+
+
+## Troubleshooting (Cluster)
+
+- SIGBUS during dry-run on `configs/ce_seed_0.yaml` was reproduced to a single-process `StreamingDataset` read on the PVC `data/mds` directory (no DDP required).
+- A prefix-config dry run completed successfully on the same node pool.
+- Shard sizes matched `index.json`, so corruption appears internal to a shard or storage-level; disable SHM (`NCCL_SHM_DISABLE=1 UCX_TLS=^shm`) did not avoid the crash.
+- Fastest fix: rebuild `data/mds` on the PVC (`uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml`).

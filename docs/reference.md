@@ -23,7 +23,7 @@ Download + MDS creation:
 ## Logging
 
 - human-readable logs via Python `logging`
-- eval outputs saved as JSON under `runs/<run_name>/eval/lm_eval_final.json`
+- `metrics.jsonl` contains train + eval telemetry (one line per step or eval/task)
 
 ## Objective Decisions
 
@@ -33,3 +33,4 @@ Download + MDS creation:
 - Special tokens or empty decoded strings use a one-hot target on themselves.
 - Tokenizer is `AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B", use_fast=True)`.
 - Pre-compute prefix weights per token for fast lookup during training.
+d

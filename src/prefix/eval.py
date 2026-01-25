@@ -13,32 +13,7 @@ from lm_eval.models.huggingface import HFLM
 from lm_eval.tasks import TaskManager
 from transformers import PreTrainedModel
 
-
-def extract_eval_sample_counts(results: dict[str, Any]) -> dict[str, Any]:
-    per_task: dict[str, int] = {}
-    total = 0
-    for task, metrics in (results.get("results") or {}).items():
-        if not isinstance(metrics, dict):
-            continue
-        raw = (
-            metrics.get("n_samples")
-            or metrics.get("num_samples")
-            or metrics.get("samples")
-        )
-        if raw is None:
-            continue
-        try:
-            count = int(raw)
-        except (TypeError, ValueError):
-            continue
-        per_task[task] = count
-        total += count
-    payload: dict[str, Any] = {}
-    if total:
-        payload["total"] = total
-    if per_task:
-        payload["per_task"] = per_task
-    return payload
+from prefix.logging_utils import log_eval_metrics, log_eval_summary
 
 
 def _safe_get_task_dict(
@@ -67,10 +42,9 @@ def _safe_get_task_dict(
     others_task_name_list = [
         task for task in task_name_list if not isinstance(task, str)
     ]
+    if task_manager is None and (string_task_name_list or others_task_name_list):
+        task_manager = lm_tasks.TaskManager()
     if string_task_name_list:
-        if task_manager is None:
-            task_manager = lm_tasks.TaskManager()
-
         task_name_from_string_dict = task_manager.load_task_or_group(
             string_task_name_list
         )
@@ -114,6 +88,7 @@ def _safe_get_task_dict(
         )
 
     lm_tasks.eval_logger.info("Selected tasks:")
+    assert task_manager is not None
     for key, value in final_task_dict.items():
         if isinstance(key, lm_tasks.ConfigurableGroup):
             lm_tasks.eval_logger.info(f"Group: {key.group}")
@@ -168,8 +143,8 @@ def evaluate_lm_harness(
         include_paths.append(str(default_tasks_dir))
     task_manager = TaskManager(include_path=include_paths) if include_paths else None
     # Work around lm-eval pretty_print_task assuming task YAMLs live under its package.
-    original_get_task_dict = evaluator.get_task_dict
-    evaluator.get_task_dict = _safe_get_task_dict
+    original_get_task_dict: Any = evaluator.get_task_dict
+    evaluator.get_task_dict = cast(Any, _safe_get_task_dict)
     try:
         results = evaluator.simple_evaluate(
             model=lm,
@@ -184,3 +159,36 @@ def evaluate_lm_harness(
     finally:
         evaluator.get_task_dict = original_get_task_dict
     return results or {}
+
+
+def run_eval_and_log(
+    *,
+    model: torch.nn.Module,
+    tokenizer: Any,
+    tasks: list[str],
+    metrics_path: Path,
+    step: int,
+    tokens_seen: int,
+    eval_name: str,
+    label: str,
+    batch_size: int = 1,
+    device: torch.device | None = None,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    results = evaluate_lm_harness(
+        model,
+        tokenizer,
+        tasks,
+        batch_size=batch_size,
+        device=device,
+        limit=limit,
+    )
+    log_eval_summary(results=results, label=label)
+    log_eval_metrics(
+        metrics_path,
+        step=step,
+        tokens_seen=tokens_seen,
+        eval_name=eval_name,
+        results=results,
+    )
+    return results

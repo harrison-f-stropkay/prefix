@@ -26,7 +26,7 @@ For each run under `runs/<run_name>/`, save:
 - resolved configs + run config
 - git commit hash
 - environment snapshot (Python + key package versions)
-- metrics/evals
+- `metrics.jsonl` (train + eval telemetry)
 - checkpoints
 
 Use stable run names so resubmits resume into the same directory (see `docs/experiments.md`).

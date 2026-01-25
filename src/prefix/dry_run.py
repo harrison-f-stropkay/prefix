@@ -11,24 +11,23 @@ from typing import Any
 import numpy as np
 import torch
 import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
 
-from prefix.eval import evaluate_lm_harness
+from prefix.eval import run_eval_and_log
+from prefix.logging_utils import configure_logging
 from prefix.train import (
     build_dataloader,
     build_model_and_tokenizer,
     build_optimizer_scheduler,
-    compute_loss,
-    configure_logging,
+    build_train_components,
     infer_run_dir,
     init_dist,
     load_checkpoint_state,
-    log_eval_results,
-    resolve_objective,
     restore_rng_state,
+    run_train_step,
     save_checkpoint,
     select_eval_tasks,
     setup_run,
+    unwrap_model,
     write_metadata,
 )
 
@@ -52,40 +51,6 @@ def next_batch(
     except StopIteration:
         it = iter(loader)
         return next(it), it
-
-
-def run_step(
-    batch: dict[str, Any],
-    *,
-    device: torch.device,
-    model: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
-    scheduler: torch.optim.lr_scheduler.LRScheduler,
-    objective_type: str,
-    epsilon: float,
-    prefix_tables: tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None,
-    amp_ctx: Any,
-    grad_clip: float,
-) -> tuple[float, int]:
-    input_ids = batch["input_ids"].to(device)
-    labels = input_ids[:, 1:].contiguous()
-    inputs = input_ids[:, :-1].contiguous()
-    with amp_ctx:
-        logits = model(inputs).logits
-        loss = compute_loss(
-            logits,
-            labels,
-            objective_type=objective_type,
-            epsilon=epsilon,
-            prefix_tables=prefix_tables,
-        )
-    optimizer.zero_grad(set_to_none=True)
-    loss.backward()
-    if grad_clip > 0:
-        torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
-    optimizer.step()
-    scheduler.step()
-    return float(loss.detach().cpu()), labels.numel()
 
 
 def main() -> None:
@@ -122,27 +87,27 @@ def main() -> None:
     if not checkpoint_enabled:
         raise ValueError("Dry run requires checkpointing to be enabled.")
 
-    loader, seq_len = build_dataloader(
-        data_cfg,
+    (
+        loader,
+        model,
+        tokenizer,
+        optimizer,
+        scheduler,
+        objective_type,
+        epsilon,
+        prefix_tables,
+        tokens_per_step,
+    ) = build_train_components(
+        train_cfg=train_cfg,
+        data_cfg=data_cfg,
+        model_cfg=model_cfg,
+        objective=objective,
         per_device_batch=per_device_batch,
         shuffle=shuffle,
         seed=seed,
-    )
-    model, tokenizer = build_model_and_tokenizer(model_cfg, data_cfg, device=device)
-    tokens_per_step = per_device_batch * world * max(seq_len - 1, 1)
-    LOGGER.info("tokens per step: %s", tokens_per_step)
-    optimizer, scheduler, total_steps = build_optimizer_scheduler(
-        model,
-        train_cfg,
-        tokens_per_step=tokens_per_step,
-    )
-    LOGGER.info("optimizer/scheduler ready (total_steps=%s)", total_steps)
-    objective_type, epsilon, prefix_tables = resolve_objective(
-        objective,
-        tokenizer=tokenizer,
         device=device,
+        world=world,
     )
-    LOGGER.info("objective resolved: %s (epsilon=%s)", objective_type, epsilon)
 
     checkpoint_dir = output_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -155,7 +120,7 @@ def main() -> None:
     tokens_seen = 0
 
     batch1, it = next_batch(it, loader)
-    loss1, tokens = run_step(
+    loss1, tokens = run_train_step(
         batch1,
         device=device,
         model=model,
@@ -169,7 +134,7 @@ def main() -> None:
     )
     step += 1
     tokens_seen += tokens * world
-    target = model.module if isinstance(model, DDP) else model
+    target = unwrap_model(model)
     save_checkpoint(
         checkpoint_dir,
         step,
@@ -183,25 +148,26 @@ def main() -> None:
         world=world,
     )
     if rank == 0 and fast_tasks:
-        eval_dir = output_dir / "eval"
-        eval_dir.mkdir(parents=True, exist_ok=True)
-        target_eval = model.module if isinstance(model, DDP) else model
+        target_eval = unwrap_model(model)
         target_eval.eval()
         with torch.no_grad():
-            results = evaluate_lm_harness(
-                target_eval,
-                tokenizer,
-                fast_tasks,
+            run_eval_and_log(
+                model=target_eval,
+                tokenizer=tokenizer,
+                tasks=fast_tasks,
+                metrics_path=output_dir / "metrics.jsonl",
+                step=step,
+                tokens_seen=tokens_seen,
+                eval_name="fast",
+                label="dry-run fast lm-eval",
                 batch_size=1,
                 device=device,
                 limit=None if eval_limit is None else int(eval_limit),
             )
-        out_path = eval_dir / "lm_eval_step1_fast.json"
-        log_eval_results(results=results, out_path=out_path, label="dry-run fast lm-eval")
         target_eval.train()
 
     batch2_before, it = next_batch(it, loader)
-    loss2_before, tokens = run_step(
+    loss2_before, tokens = run_train_step(
         batch2_before,
         device=device,
         model=model,
@@ -223,7 +189,7 @@ def main() -> None:
         seed=seed,
     )
     resumed_model, _ = build_model_and_tokenizer(model_cfg, data_cfg, device=device)
-    resumed_optimizer, resumed_scheduler, _ = build_optimizer_scheduler(
+    resumed_optimizer, resumed_scheduler = build_optimizer_scheduler(
         resumed_model,
         train_cfg,
         tokens_per_step=tokens_per_step,
@@ -235,7 +201,7 @@ def main() -> None:
     )
     if not global_state or not rank_state:
         raise RuntimeError("Missing checkpoint state for dry-run resume.")
-    target = resumed_model.module if isinstance(resumed_model, DDP) else resumed_model
+    target = unwrap_model(resumed_model)
     target.load_state_dict(global_state["model"])
     resumed_optimizer.load_state_dict(global_state["optimizer"])
     if global_state.get("scheduler"):
@@ -248,7 +214,7 @@ def main() -> None:
     resumed_model.train()
     resumed_it = iter(resumed_loader)
     batch2_after, resumed_it = next_batch(resumed_it, resumed_loader)
-    loss2_after, _ = run_step(
+    loss2_after, _ = run_train_step(
         batch2_after,
         device=device,
         model=resumed_model,
@@ -293,21 +259,7 @@ def main() -> None:
             loss2_after,
         )
         if slow_tasks:
-            eval_dir = output_dir / "eval"
-            eval_dir.mkdir(parents=True, exist_ok=True)
-            target = resumed_model.module if isinstance(resumed_model, DDP) else resumed_model
-            target.eval()
-            with torch.no_grad():
-                results = evaluate_lm_harness(
-                    target,
-                    tokenizer,
-                    slow_tasks,
-                    batch_size=1,
-                    device=device,
-                    limit=None,
-                )
-            out_path = eval_dir / "lm_eval_dry_run.json"
-            log_eval_results(results=results, out_path=out_path, label="dry-run lm-eval")
+            LOGGER.info("dry-run skipping slow eval; fast eval runs after step 1")
     # Cleanly tear down DDP to avoid NCCL shutdown warnings.
     if dist.is_initialized():
         dist.destroy_process_group()

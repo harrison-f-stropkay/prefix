@@ -50,7 +50,7 @@ fi
 inner_cmd="set -euo pipefail; \
 mkdir -p \"${repo_root}/runs/${run_id}/logs\"; \
 : > \"${repo_root}/runs/${run_id}/logs/${mode}.log\"; \
-exec >> \"${repo_root}/runs/${run_id}/logs/${mode}.log\" 2>&1; \
+exec > >(tee -a \"${repo_root}/runs/${run_id}/logs/${mode}.log\") 2>&1; \
 cd \"${repo_root}\"; \
 git remote set-url origin \"https://github.com/harrison-f-stropkay/prefix.git\"; \
 git fetch origin main; \

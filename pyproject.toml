@@ -1,7 +1,7 @@
 [project]
 name = "prefix"
 version = "0.1.0"
-description = "Prefix-aware label smoothing experiments for Llama-3–style LM training"
+description = "Prefix-aware label smoothing experiments for Llama-3-style LM training"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [

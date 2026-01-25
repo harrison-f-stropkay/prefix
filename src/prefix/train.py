@@ -26,12 +26,16 @@ from transformers import get_scheduler
 
 from prefix.config import load_run_config
 from prefix.data import build_streaming_dataloader
-from prefix.eval import evaluate_lm_harness, extract_eval_sample_counts
+from prefix.eval import run_eval_and_log
+from prefix.logging_utils import (
+    configure_logging,
+    log_train_metrics,
+    set_log_rank,
+)
 from prefix.modeling import build_llama_model
 from prefix.objectives import build_lookup, load_tokenizer
 
 LOGGER = logging.getLogger(__name__)
-LOG_RANK: str | int = "?"
 
 OBJECTIVE_TYPES = {
     "cross_entropy",
@@ -53,45 +57,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--run-config", required=True, type=Path)
     return parser.parse_args()
-
-
-def configure_logging(log_path: Path | None = None) -> None:
-    class RankFilter(logging.Filter):
-        def filter(self, record: logging.LogRecord) -> bool:
-            record.rank = LOG_RANK
-            return True
-
-    # Reset handlers to avoid duplicate logs when configure_logging is called twice.
-    root = logging.getLogger()
-    for handler in list(root.handlers):
-        root.removeHandler(handler)
-
-    old_factory = logging.getLogRecordFactory()
-
-    def record_factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
-        record = old_factory(*args, **kwargs)
-        if not hasattr(record, "rank"):
-            record.rank = LOG_RANK
-        return record
-
-    logging.setLogRecordFactory(record_factory)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s [rank=%(rank)s] %(name)s: %(message)s",
-    )
-    if not any(isinstance(filt, RankFilter) for filt in root.filters):
-        root.addFilter(RankFilter())
-    if log_path is not None:
-        handler = logging.FileHandler(log_path)
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s %(levelname)s [rank=%(rank)s] %(name)s: %(message)s")
-        )
-        logging.getLogger().addHandler(handler)
-
-
-def set_log_rank(rank: int) -> None:
-    global LOG_RANK
-    LOG_RANK = rank
 
 
 def set_global_seed(seed: int) -> None:
@@ -278,82 +243,6 @@ def write_metadata(output_dir: Path, config: dict[str, Any], run_config_path: Pa
             "cuda_available": torch.cuda.is_available(),
         }
         env_path.write_text(json.dumps(env, indent=2, sort_keys=True), encoding="utf-8")
-
-
-def _json_default(value: Any) -> Any:
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, (set, frozenset)):
-        return list(value)
-    item = getattr(value, "item", None)
-    if callable(item):
-        try:
-            return item()
-        except Exception:
-            pass
-    return str(value)
-
-
-def append_jsonl(path: Path, record: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, sort_keys=True, default=_json_default) + "\n")
-
-
-def log_train_metrics(
-    metrics_path: Path,
-    *,
-    step: int,
-    loss: float,
-    tokens_seen: int,
-    lr: float,
-) -> None:
-    append_jsonl(
-        metrics_path,
-        {
-            "type": "train",
-            "step": step,
-            "loss": loss,
-            "tokens_seen": tokens_seen,
-            "lr": lr,
-        },
-    )
-
-
-def log_eval_metrics(
-    metrics_path: Path,
-    *,
-    step: int,
-    path: Path,
-    results: dict[str, Any],
-) -> None:
-    sample_counts = extract_eval_sample_counts(results)
-    append_jsonl(
-        metrics_path,
-        {
-            "type": "eval",
-            "step": step,
-            "path": str(path),
-            "num_samples": sample_counts.get("total"),
-        },
-    )
-
-
-def log_eval_results(
-    *,
-    results: dict[str, Any],
-    out_path: Path,
-    label: str,
-) -> None:
-    # lm-eval returns numpy dtypes that need a safe JSON fallback.
-    out_path.write_text(
-        json.dumps(results, indent=2, sort_keys=True, default=_json_default),
-        encoding="utf-8",
-    )
-    LOGGER.info("%s results saved to %s", label, out_path)
-    LOGGER.info("%s results: %s", label, results.get("results"))
-    sample_counts = extract_eval_sample_counts(results)
-    LOGGER.info("%s samples: %s", label, sample_counts.get("total"))
 
 
 def prune_checkpoints(checkpoint_dir: Path, keep_last: int) -> None:
@@ -599,7 +488,7 @@ def build_optimizer_scheduler(
     train_cfg: dict[str, Any],
     *,
     tokens_per_step: int,
-) -> tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler, int]:
+) -> tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
     lr = float(train_cfg.get("learning_rate", 3e-4))
     weight_decay = float(train_cfg.get("weight_decay", 0.0))
     adam_betas = train_cfg.get("adam_betas", [0.9, 0.95])
@@ -630,7 +519,8 @@ def build_optimizer_scheduler(
         num_warmup_steps=warmup_steps,
         num_training_steps=total_steps,
     )
-    return optimizer, scheduler, total_steps
+    LOGGER.info("optimizer/scheduler ready (total_steps=%s)", total_steps)
+    return optimizer, scheduler
 
 
 def resolve_objective(
@@ -655,6 +545,100 @@ def resolve_objective(
             prefix_counts.to(device),
         )
     return objective_type, epsilon, prefix_tables
+
+
+def build_train_components(
+    *,
+    train_cfg: dict[str, Any],
+    data_cfg: dict[str, Any],
+    model_cfg: dict[str, Any],
+    objective: dict[str, Any],
+    per_device_batch: int,
+    shuffle: bool,
+    seed: int,
+    device: torch.device,
+    world: int,
+) -> tuple[
+    StreamingDataLoader,
+    torch.nn.Module,
+    Any,
+    torch.optim.Optimizer,
+    torch.optim.lr_scheduler.LRScheduler,
+    str,
+    float,
+    tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None,
+    int,
+]:
+    loader, seq_len = build_dataloader(
+        data_cfg,
+        per_device_batch=per_device_batch,
+        shuffle=shuffle,
+        seed=seed,
+    )
+    LOGGER.info("dataloader ready (seq_len=%s)", seq_len)
+    model, tokenizer = build_model_and_tokenizer(model_cfg, data_cfg, device=device)
+    tokens_per_step = per_device_batch * world * max(seq_len - 1, 1)
+    LOGGER.info("tokens per step: %s", tokens_per_step)
+    optimizer, scheduler = build_optimizer_scheduler(
+        model,
+        train_cfg,
+        tokens_per_step=tokens_per_step,
+    )
+    objective_type, epsilon, prefix_tables = resolve_objective(
+        objective,
+        tokenizer=tokenizer,
+        device=device,
+    )
+    LOGGER.info("objective resolved: %s (epsilon=%s)", objective_type, epsilon)
+    return (
+        loader,
+        model,
+        tokenizer,
+        optimizer,
+        scheduler,
+        objective_type,
+        epsilon,
+        prefix_tables,
+        tokens_per_step,
+    )
+
+
+def unwrap_model(model: torch.nn.Module) -> torch.nn.Module:
+    return model.module if isinstance(model, DDP) else model
+
+
+def run_train_step(
+    batch: dict[str, Any],
+    *,
+    device: torch.device,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
+    objective_type: str,
+    epsilon: float,
+    prefix_tables: tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None,
+    amp_ctx: Any,
+    grad_clip: float,
+) -> tuple[float, int]:
+    input_ids = batch["input_ids"].to(device)
+    labels = input_ids[:, 1:].contiguous()
+    inputs = input_ids[:, :-1].contiguous()
+    with amp_ctx:
+        logits = model(inputs).logits
+        loss = compute_loss(
+            logits,
+            labels,
+            objective_type=objective_type,
+            epsilon=epsilon,
+            prefix_tables=prefix_tables,
+        )
+    optimizer.zero_grad(set_to_none=True)
+    loss.backward()
+    if grad_clip > 0:
+        torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+    optimizer.step()
+    scheduler.step()
+    return float(loss.detach().cpu()), labels.numel()
 
 
 def main() -> None:
@@ -690,28 +674,27 @@ def main() -> None:
     save_every = int(checkpoint_cfg.get("save_every_steps", 100))
     keep_last = int(checkpoint_cfg.get("keep_last", 0))
     shuffle = bool(train_cfg.get("shuffle", True))
-    loader, seq_len = build_dataloader(
-        data_cfg,
+    (
+        loader,
+        model,
+        tokenizer,
+        optimizer,
+        scheduler,
+        objective_type,
+        epsilon,
+        prefix_tables,
+        tokens_per_step,
+    ) = build_train_components(
+        train_cfg=train_cfg,
+        data_cfg=data_cfg,
+        model_cfg=model_cfg,
+        objective=objective,
         per_device_batch=per_device_batch,
         shuffle=shuffle,
         seed=seed,
-    )
-    LOGGER.info("dataloader ready (seq_len=%s)", seq_len)
-    model, tokenizer = build_model_and_tokenizer(model_cfg, data_cfg, device=device)
-    tokens_per_step = per_device_batch * world * max(seq_len - 1, 1)
-    LOGGER.info("tokens per step: %s", tokens_per_step)
-    optimizer, scheduler, total_steps = build_optimizer_scheduler(
-        model,
-        train_cfg,
-        tokens_per_step=tokens_per_step,
-    )
-    LOGGER.info("optimizer/scheduler ready (total_steps=%s)", total_steps)
-    objective_type, epsilon, prefix_tables = resolve_objective(
-        objective,
-        tokenizer=tokenizer,
         device=device,
+        world=world,
     )
-    LOGGER.info("objective resolved: %s (epsilon=%s)", objective_type, epsilon)
     # eval_every already computed in setup_run
 
     checkpoint_dir = output_dir / "checkpoints"
@@ -727,7 +710,7 @@ def main() -> None:
         world=world,
     )
     if global_state:
-        target = model.module if isinstance(model, DDP) else model
+        target = unwrap_model(model)
         target.load_state_dict(global_state["model"])
         optimizer.load_state_dict(global_state["optimizer"])
         if global_state.get("scheduler"):
@@ -804,7 +787,7 @@ def main() -> None:
                 lr=optimizer.param_groups[0]["lr"],
             )
         if checkpoint_enabled and save_every and step % save_every == 0:
-            target = model.module if isinstance(model, DDP) else model
+            target = unwrap_model(model)
             save_checkpoint(
                 checkpoint_dir,
                 step,
@@ -818,26 +801,26 @@ def main() -> None:
                 world=world,
             )
         if rank == 0 and fast_tasks and eval_every > 0 and step % eval_every == 0:
-            target = model.module if isinstance(model, DDP) else model
+            target = unwrap_model(model)
             target.eval()
-            eval_dir = output_dir / "eval"
-            eval_dir.mkdir(parents=True, exist_ok=True)
-            results = evaluate_lm_harness(
-                target,
-                tokenizer,
-                fast_tasks,
+            run_eval_and_log(
+                model=target,
+                tokenizer=tokenizer,
+                tasks=fast_tasks,
+                metrics_path=metrics_path,
+                step=step,
+                tokens_seen=tokens_seen,
+                eval_name="fast",
+                label="lm-eval",
                 batch_size=1,
                 device=device,
                 limit=None if eval_limit is None else int(eval_limit),
             )
-            out_path = eval_dir / f"lm_eval_step{step}.json"
-            log_eval_results(results=results, out_path=out_path, label="lm-eval")
-            log_eval_metrics(metrics_path, step=step, path=out_path, results=results)
             last_eval_step = step
             target.train()
 
     if checkpoint_enabled:
-        target = model.module if isinstance(model, DDP) else model
+        target = unwrap_model(model)
         save_checkpoint(
             checkpoint_dir,
             step,
@@ -854,20 +837,20 @@ def main() -> None:
     if dist.is_initialized():
         dist.barrier()
     if rank == 0 and slow_tasks and last_eval_step != step:
-        target = model.module if isinstance(model, DDP) else model
+        target = unwrap_model(model)
         target.eval()
-        eval_dir = output_dir / "eval"
-        eval_dir.mkdir(parents=True, exist_ok=True)
-        results = evaluate_lm_harness(
-            target,
-            tokenizer,
-            slow_tasks,
+        run_eval_and_log(
+            model=target,
+            tokenizer=tokenizer,
+            tasks=slow_tasks,
+            metrics_path=metrics_path,
+            step=step,
+            tokens_seen=tokens_seen,
+            eval_name="slow",
+            label="lm-eval",
             batch_size=1,
             device=device,
         )
-        out_path = eval_dir / "lm_eval_final.json"
-        log_eval_results(results=results, out_path=out_path, label="lm-eval")
-        log_eval_metrics(metrics_path, step=step, path=out_path, results=results)
     if dist.is_initialized():
         dist.barrier()
         # Cleanly tear down DDP to avoid NCCL shutdown warnings.

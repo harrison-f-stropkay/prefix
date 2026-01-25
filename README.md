@@ -108,6 +108,7 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 - `winogrande`
 - `arc_easy`
 - `hellaswag`
+- `charbench`
 
 ## Directory Structure
 
@@ -127,32 +128,36 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 └── runs/
 ```
 
+## Dry run
+
+### Submit a dry run
+
+```bash
+bash runai/submit_train.sh --dry-run configs/ce_seed_0.yaml
+```
+
+### Tail dry-run logs
+
+```bash
+runai training standard logs prefix-dry-run-ce-seed-0 --tail=200 --follow
+```
+
 ## Reproducability
 
-### Training data:
+### Collate training data
 
 ```bash
 uv run python scripts/download_fineweb_edu.py --run-config configs/ce_seed_0.yaml
 uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml
 ```
 
-### Prefix info
+### Compute info about Unicde prefixes
+
 ```bash
 uv run python scripts/plot_prefix_counts.py --hf-id meta-llama/Meta-Llama-3-8
 ```
 
-### Metrics plot
-```bash
-uv run python scripts/plot_metrics.py
-```
-
-## Dry run:
-
-```bash
-bash runai/submit_train.sh --dry-run configs/ce_seed_0.yaml
-```
-
-## Preliminary experiments (7 runs):
+### Submit training runs
 
 ```bash
 bash runai/submit_train.sh configs/ce_seed_0.yaml
@@ -164,15 +169,8 @@ bash runai/submit_train.sh configs/prefix_unnorm_eps0p1_seed0.yaml
 bash runai/submit_train.sh configs/prefix_unnorm_eps1p0_seed0.yaml
 ```
 
-## Tail dry-run logs:
+### Plot metrics
 
 ```bash
-runai training standard logs prefix-dry-run-ce-seed-0 --tail=200 --follow
+uv run python scripts/plot_metrics.py
 ```
-
-## Troubleshooting (Cluster)
-
-- SIGBUS during dry-run on `configs/ce_seed_0.yaml` was reproduced to a single-process `StreamingDataset` read on the PVC `data/mds` directory (no DDP required).
-- A prefix-config dry run completed successfully on the same node pool.
-- Shard sizes matched `index.json`, so corruption appears internal to a shard or storage-level; disable SHM (`NCCL_SHM_DISABLE=1 UCX_TLS=^shm`) did not avoid the crash.
-- Fastest fix: rebuild `data/mds` on the PVC (`uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml`).
