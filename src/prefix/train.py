@@ -61,6 +61,11 @@ def configure_logging(log_path: Path | None = None) -> None:
             record.rank = LOG_RANK
             return True
 
+    # Reset handlers to avoid duplicate logs when configure_logging is called twice.
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+
     old_factory = logging.getLogRecordFactory()
 
     def record_factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
@@ -74,7 +79,6 @@ def configure_logging(log_path: Path | None = None) -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s [rank=%(rank)s] %(name)s: %(message)s",
     )
-    root = logging.getLogger()
     if not any(isinstance(filt, RankFilter) for filt in root.filters):
         root.addFilter(RankFilter())
     if log_path is not None:
