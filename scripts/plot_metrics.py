@@ -5,6 +5,7 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
+import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 
@@ -67,6 +68,8 @@ def main() -> None:
         for record in records:
             if record.get("type") == "train":
                 step = int(record["step"])
+                if step % 1000 != 0:
+                    continue
                 tokens_seen = int(record["tokens_seen"])
                 step_to_tokens[step] = tokens_seen
                 train_rows.append(
@@ -159,8 +162,13 @@ def main() -> None:
             ax.set_title(f"{title} (no data)")
             ax.axis("off")
             continue
+        frame = pd.DataFrame(rows).dropna(subset=["value"])
+        if frame.empty:
+            ax.set_title(f"{title} (no data)")
+            ax.axis("off")
+            continue
         sns.lineplot(
-            data=rows,
+            data=frame,
             x="tokens_seen",
             y="value",
             hue="model",
