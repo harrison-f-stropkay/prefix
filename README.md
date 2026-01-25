@@ -141,6 +141,11 @@ uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml
 uv run python scripts/plot_prefix_counts.py --hf-id meta-llama/Meta-Llama-3-8
 ```
 
+### Metrics plot
+```bash
+uv run python scripts/plot_metrics.py
+```
+
 ## Dry run:
 
 ```bash
