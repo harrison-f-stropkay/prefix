@@ -53,9 +53,6 @@ def main() -> None:
         log_samples=True,
     )
 
-    if args.output:
-        args.output.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
-
     samples = results.get("samples") or {}
     if not samples:
         print("No samples returned. Ensure log_samples=True and task supports samples.", flush=True)
@@ -71,6 +68,12 @@ def main() -> None:
             print(f"\n[{idx}] prompt: {prompt!r}", flush=True)
             print(f"target: {target!r}", flush=True)
             print(f"output: {output!r}", flush=True)
+
+    if args.output:
+        args.output.write_text(
+            json.dumps(results, indent=2, sort_keys=True, default=str),
+            encoding="utf-8",
+        )
 
 
 if __name__ == "__main__":
