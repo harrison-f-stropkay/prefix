@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datasets
 
-from .charbench_subset import process_docs as _process_docs
+from charbench_subset import process_docs as _process_docs
 
 
 def process_docs(
