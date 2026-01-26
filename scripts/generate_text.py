@@ -8,7 +8,7 @@ from prefix.config import load_run_config
 from prefix.modeling import build_llama_model
 from prefix.objectives import load_tokenizer
 
-PROMPT = "Once upon a time,"
+PROMPT = "The North won the Civil War because"
 RUN_CONFIG = Path("configs/ce_seed_0.yaml")
 CHECKPOINT = Path("runs/ce_seed_0/checkpoints/latest.pt")
 MAX_NEW_TOKENS = 100
