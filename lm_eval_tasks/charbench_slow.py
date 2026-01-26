@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import os
+import sys
+
 import datasets
 
-from charbench_subset import process_docs as _process_docs
+sys.path.append(os.path.dirname(__file__))
+from charbench_subset import process_docs as _process_docs  # noqa: E402
 
 
 def process_docs(
