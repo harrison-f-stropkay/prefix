@@ -31,7 +31,10 @@ def main() -> None:
         output_ids = model.generate(
             **inputs,
             max_new_tokens=MAX_NEW_TOKENS,
-            do_sample=False,
+            do_sample=True,
+            temperature=0.8,
+            top_p=0.95,
+            repetition_penalty=1.1,
         )
     text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
     print(text)
