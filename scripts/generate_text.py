@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import torch
 
 from prefix.config import load_run_config
@@ -9,7 +7,7 @@ from prefix.modeling import build_llama_model
 from prefix.objectives import load_tokenizer
 
 PROMPT = "Once upon a time,"
-RUN_CONFIG = Path("configs/ce_seed_0.yaml")
+RUN_CONFIG = "configs/ce_seed_0.yaml"
 CHECKPOINT = "runs/ce_seed_0/checkpoints/latest.pt"
 MAX_NEW_TOKENS = 100
 
