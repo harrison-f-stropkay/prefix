@@ -128,20 +128,6 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 └── runs/
 ```
 
-## Dry run
-
-### Submit a dry run
-
-```bash
-bash runai/submit_train.sh --dry-run configs/ce_seed_0.yaml
-```
-
-### Tail dry-run logs
-
-```bash
-runai training standard logs prefix-dry-run-ce-seed-0 --tail=200 --follow
-```
-
 ## Reproducability
 
 ### Collate training data

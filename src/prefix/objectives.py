@@ -48,6 +48,7 @@ def build_target_distribution(
     token_id: int,
     objective_type: str,
     *,
+    proper_prefixes_only: bool,
     epsilon: float = 0.1,
     tau: float = 1.0,
     normalized: bool = False,
@@ -76,9 +77,14 @@ def build_target_distribution(
         raise ValueError(f"Unknown objective type: {objective_type!r}")
 
     prefix_ids, prefix_lengths = lookup[token_id]
-    prefix_pairs = [
-        (pid, plen) for pid, plen in zip(prefix_ids, prefix_lengths, strict=True) if pid != token_id
-    ]
+    if proper_prefixes_only:
+        prefix_pairs = [
+            (pid, plen)
+            for pid, plen in zip(prefix_ids, prefix_lengths, strict=True)
+            if pid != token_id
+        ]
+    else:
+        prefix_pairs = list(zip(prefix_ids, prefix_lengths, strict=True))
     if not prefix_pairs:
         dist[token_id] = 1.0
         return dist

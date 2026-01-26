@@ -17,6 +17,7 @@ class Args(argparse.Namespace):
     batch_size: int
     limit: int | None
     output: Path | None
+    log_samples: bool
 
 
 def parse_args() -> Args:
@@ -26,6 +27,11 @@ def parse_args() -> Args:
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--log-samples",
+        action="store_true",
+        help="Include sample generations in the lm-eval output JSON.",
+    )
     return parser.parse_args(namespace=Args())
 
 
@@ -51,6 +57,7 @@ def main() -> None:
         batch_size=args.batch_size,
         device=device,
         limit=args.limit,
+        log_samples=args.log_samples,
     )
 
     logging.info("lm-eval results: %s", results.get("results"))

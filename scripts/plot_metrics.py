@@ -20,7 +20,10 @@ def read_metrics(path: Path) -> list[dict]:
             line = line.strip()
             if not line:
                 continue
-            records.append(json.loads(line))
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
     return records
 
 
@@ -42,10 +45,12 @@ def main() -> None:
         if not metrics_path.exists():
             continue
         records = read_metrics(metrics_path)
+        step_to_tokens: dict[int, int] = {}
         for record in records:
             if record.get("type") == "train":
                 step = int(record["step"])
                 tokens_seen = int(record["tokens_seen"])
+                step_to_tokens[step] = tokens_seen
                 train_raw_rows.append(
                     {
                         "model": run_dir.name,
@@ -55,10 +60,20 @@ def main() -> None:
                     }
                 )
             if record.get("type") == "eval":
+                tokens_seen = record.get("tokens_seen")
+                if tokens_seen is None:
+                    step = record.get("step")
+                    if step is None:
+                        continue
+                    tokens_seen = step_to_tokens.get(int(step))
+                if tokens_seen is None:
+                    continue
+                if "task" not in record or "metric" not in record or "value" not in record:
+                    continue
                 eval_rows.append(
                     {
                         "model": run_dir.name,
-                        "tokens_seen": int(record["tokens_seen"]),
+                        "tokens_seen": int(tokens_seen),
                         "task": record["task"],
                         "metric": record["metric"],
                         "value": float(record["value"]),
@@ -127,7 +142,11 @@ def main() -> None:
         ("lm_eval_composite_smoothed", composite_smoothed),
         (
             "charbench_exact_match",
-            [r for r in eval_rows if r["task"].startswith("charbench") and r["metric"] == "exact_match"],
+            [
+                r
+                for r in eval_rows
+                if r["task"].startswith("charbench") and r["metric"] == "exact_match"
+            ],
         ),
     ]
 

@@ -126,6 +126,7 @@ def evaluate_lm_harness(
     batch_size: int = 1,
     device: torch.device | None = None,
     limit: int | None = None,
+    log_samples: bool = False,
 ) -> dict[str, Any]:
     device_str = str(device) if device is not None else None
     lm = HFLM(
@@ -153,7 +154,7 @@ def evaluate_lm_harness(
             device=device_str,
             limit=limit,
             bootstrap_iters=0,
-            log_samples=False,
+            log_samples=log_samples,
             task_manager=task_manager,
         )
     finally:
@@ -174,6 +175,7 @@ def run_eval_and_log(
     batch_size: int = 1,
     device: torch.device | None = None,
     limit: int | None = None,
+    log_samples: bool = False,
 ) -> dict[str, Any]:
     results = evaluate_lm_harness(
         model,
@@ -182,6 +184,7 @@ def run_eval_and_log(
         batch_size=batch_size,
         device=device,
         limit=limit,
+        log_samples=log_samples,
     )
     log_eval_summary(results=results, label=label)
     log_eval_metrics(

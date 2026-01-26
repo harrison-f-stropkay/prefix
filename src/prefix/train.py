@@ -341,6 +341,9 @@ def build_prefix_weights(
     objective_type = objective["type"]
     tau = float(objective.get("tau", 1.0))
     normalized = bool(objective.get("normalized", False))
+    if "proper_prefixes_only" not in objective:
+        raise ValueError("objective.proper_prefixes_only is required for prefix objectives.")
+    proper_prefixes_only = bool(objective["proper_prefixes_only"])
     vocab_size = len(lookup)
     weights: list[tuple[list[int], list[float]]] = [([], []) for _ in range(vocab_size)]
 
@@ -353,11 +356,14 @@ def build_prefix_weights(
 
     for token_id in range(vocab_size):
         prefix_ids, prefix_lengths = lookup[token_id]
-        pairs = [
-            (pid, plen)
-            for pid, plen in zip(prefix_ids, prefix_lengths, strict=True)
-            if pid != token_id
-        ]
+        if proper_prefixes_only:
+            pairs = [
+                (pid, plen)
+                for pid, plen in zip(prefix_ids, prefix_lengths, strict=True)
+                if pid != token_id
+            ]
+        else:
+            pairs = list(zip(prefix_ids, prefix_lengths, strict=True))
         if not pairs:
             continue
         ids = [pid for pid, _ in pairs]
@@ -759,6 +765,7 @@ def main() -> None:
     if tokens_seen == 0:
         tokens_seen = step * tokens_per_step
     last_eval_step: int | None = None
+    last_loss: float | None = None
 
     def should_continue() -> bool:
         if max_steps > 0:
@@ -797,15 +804,9 @@ def main() -> None:
         step += 1
         tokens_seen += labels.numel() * world
         if rank == 0 and step % 10 == 0:
-            LOGGER.info("step %s loss %.4f", step, float(loss))
+            LOGGER.info("step %s loss %.4f", step, float(loss.detach()))
         if rank == 0:
-            log_train_metrics(
-                metrics_path,
-                step=step,
-                loss=float(loss.detach().cpu()),
-                tokens_seen=tokens_seen,
-                lr=optimizer.param_groups[0]["lr"],
-            )
+            last_loss = float(loss.detach().cpu())
         if checkpoint_enabled and save_every and step % save_every == 0:
             target = unwrap_model(model)
             save_checkpoint(
@@ -821,6 +822,14 @@ def main() -> None:
                 world=world,
             )
         if rank == 0 and fast_tasks and eval_every > 0 and step % eval_every == 0:
+            if last_loss is not None:
+                log_train_metrics(
+                    metrics_path,
+                    step=step,
+                    loss=last_loss,
+                    tokens_seen=tokens_seen,
+                    lr=optimizer.param_groups[0]["lr"],
+                )
             target = unwrap_model(model)
             target.eval()
             run_eval_and_log(
@@ -857,6 +866,14 @@ def main() -> None:
     if dist.is_initialized():
         dist.barrier()
     if rank == 0 and slow_tasks and last_eval_step != step:
+        if last_loss is not None:
+            log_train_metrics(
+                metrics_path,
+                step=step,
+                loss=last_loss,
+                tokens_seen=tokens_seen,
+                lr=optimizer.param_groups[0]["lr"],
+            )
         target = unwrap_model(model)
         target.eval()
         run_eval_and_log(

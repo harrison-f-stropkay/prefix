@@ -33,7 +33,7 @@ train:
     backend: nccl
   checkpointing:
     enabled: true
-    save_every_steps: 1000
+    save_every_steps: 5000
     keep_last: 1
   per_gpu_batch_size: 8
   max_steps: -1
@@ -57,9 +57,10 @@ eval:
     - hellaswag
     - charbench
     limit: 1000
-  every_steps: 1000
+  every_steps: 5000
 objective:
   type: prefix_softmax
+  proper_prefixes_only: false
   normalized: false
   tau: 1.0
   epsilon: 1.0

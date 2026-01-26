@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -109,6 +110,7 @@ def log_train_metrics(
         metrics_path,
         {
             "type": "train",
+            "timestamp": datetime.utcnow().isoformat(),
             "step": step,
             "loss": loss,
             "tokens_seen": tokens_seen,
@@ -146,6 +148,7 @@ def log_eval_metrics(
                 metrics_path,
                 {
                     "type": "eval",
+                    "timestamp": datetime.utcnow().isoformat(),
                     "step": step,
                     "tokens_seen": tokens_seen,
                     "eval_name": eval_name,
