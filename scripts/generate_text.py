@@ -7,8 +7,8 @@ from prefix.modeling import build_llama_model
 from prefix.objectives import load_tokenizer
 
 PROMPT = "Once upon a time,"
-RUN_CONFIG = "configs/ce_seed_0.yaml"
-CHECKPOINT = "runs/ce_seed_0/checkpoints/latest.pt"
+RUN_CONFIG = Path("configs/ce_seed_0.yaml")
+CHECKPOINT = Path("runs/ce_seed_0/checkpoints/latest.pt")
 MAX_NEW_TOKENS = 100
 
 
