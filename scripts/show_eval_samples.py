@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import json
 
 import torch
 
@@ -21,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--tasks", nargs="*", default=None)
     parser.add_argument("--max-samples", type=int, default=5)
+    parser.add_argument("--output", type=Path, default=None)
     return parser.parse_args()
 
 
@@ -33,6 +35,7 @@ def main() -> None:
         raise SystemExit("No lm-eval tasks defined or passed.")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"device={device}", flush=True)
     tokenizer = load_tokenizer(config["data"]["tokenizer"]["hf_id"])
     model = build_llama_model(config["model"], vocab_size=len(tokenizer))
     model = model.to(device)  # type: ignore[arg-type]
@@ -50,20 +53,24 @@ def main() -> None:
         log_samples=True,
     )
 
+    if args.output:
+        args.output.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
+
     samples = results.get("samples") or {}
     if not samples:
-        print("No samples returned. Ensure log_samples=True and task supports samples.")
+        print("No samples returned. Ensure log_samples=True and task supports samples.", flush=True)
+        print(f"result keys: {list(results.keys())}", flush=True)
         return
 
     for task, items in samples.items():
-        print(f"\n=== {task} (showing up to {args.max_samples}) ===")
+        print(f"\n=== {task} (showing up to {args.max_samples}) ===", flush=True)
         for idx, sample in enumerate(items[: args.max_samples]):
             prompt = sample.get("doc", {}).get("query") or sample.get("doc", {}).get("question")
             target = sample.get("doc", {}).get("answer")
             output = sample.get("resps", [""])[0]
-            print(f"\n[{idx}] prompt: {prompt!r}")
-            print(f"target: {target!r}")
-            print(f"output: {output!r}")
+            print(f"\n[{idx}] prompt: {prompt!r}", flush=True)
+            print(f"target: {target!r}", flush=True)
+            print(f"output: {output!r}", flush=True)
 
 
 if __name__ == "__main__":
