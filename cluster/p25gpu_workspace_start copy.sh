@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-runai workspace submit prefix-1gpu \
+runai workspace submit prefix-p25gpu \
   --project strophf1 \
   --image docker-public-local.artifactory.jhuapl.edu/itsdai/runai/idp-fips-ngc2505pytorch:0.1 \
   --gpu-portion-request 0.25 \
@@ -16,5 +16,6 @@ runai workspace submit prefix-1gpu \
   --node-pools default \
   --external-url container=8888 \
   --run-as-user \
+  --preemptible \
   --environment HOME=/home/apluser \
   --environment USER=apluser

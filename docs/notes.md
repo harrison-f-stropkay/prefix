@@ -125,3 +125,15 @@ bash runai/submit_train.sh --dry-run configs/ce_seed_0.yaml
 ```bash
 runai training standard logs prefix-dry-run-ce-seed-0 --tail=200 --follow
 ```
+
+### Inspect CharBench generations
+
+```bash
+uv run python scripts/show_eval_samples.py \
+  --run-config configs/ce_seed_0.yaml \
+  --checkpoint runs/ce_seed_0/checkpoints/latest.pt \
+  --tasks charbench_fast \
+  --limit 2 \
+  --max-samples 2 \
+  --output /tmp/charbench_samples.json
+```
