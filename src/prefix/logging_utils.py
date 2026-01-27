@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -132,6 +133,9 @@ def log_eval_metrics(
     for task_name, task_metrics in (results.get("results") or {}).items():
         if not isinstance(task_metrics, dict):
             continue
+        if "acc_norm" in task_metrics:
+            task_metrics = dict(task_metrics)
+            task_metrics.pop("acc", None)
         for metric_name, value in task_metrics.items():
             if metric_name == "alias":
                 continue
@@ -158,6 +162,21 @@ def log_eval_metrics(
                     "num_samples": per_task_counts.get(task_name),
                 },
             )
+            if task_name.startswith("charbench") and clean_metric == "loglikelihood":
+                append_jsonl(
+                    metrics_path,
+                    {
+                        "type": "eval",
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "step": step,
+                        "tokens_seen": tokens_seen,
+                        "eval_name": eval_name,
+                        "task": task_name,
+                        "metric": "ppl",
+                        "value": math.exp(-numeric),
+                        "num_samples": per_task_counts.get(task_name),
+                    },
+                )
 
 
 def log_eval_summary(*, results: dict[str, Any], label: str) -> None:
