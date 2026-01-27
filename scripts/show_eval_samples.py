@@ -12,10 +12,10 @@ from prefix.objectives import load_tokenizer
 
 RUN_CONFIG = Path("configs/ce_seed_0.yaml")
 CHECKPOINT = Path("runs/ce_seed_0/checkpoints/latest.pt")
-TASKS = ["charbench_fast"]
-LIMIT = 20
+TASKS: list[str] = []
+LIMIT = 10
 BATCH_SIZE = 1
-MAX_SAMPLES = 20
+MAX_SAMPLES = 10
 OUTPUT = Path("/tmp/charbench_samples.json")
 
 
@@ -46,13 +46,12 @@ def main() -> None:
     )
 
     samples = results.get("samples") or {}
-    if not samples:
-        print("No samples returned. Ensure log_samples=True and task supports samples.", flush=True)
-        print(f"result keys: {list(results.keys())}", flush=True)
-        return
-
-    for task, items in samples.items():
+    for task in tasks:
+        items = samples.get(task) or []
         print(f"\n=== {task} (showing up to {MAX_SAMPLES}) ===", flush=True)
+        if not items:
+            print("No samples returned for this task.", flush=True)
+            continue
         for idx, sample in enumerate(items[:MAX_SAMPLES]):
             prompt = sample.get("doc", {}).get("query") or sample.get("doc", {}).get("question")
             target = sample.get("doc", {}).get("answer")
