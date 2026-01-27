@@ -3,7 +3,7 @@ dataset_path: omriuz/CharBench
 output_type: loglikelihood
 training_split: train
 test_split: train
-doc_to_text: "Answer this question only with the final number, without any other text. Lower case and upper case letters are considered different characters.\n\nQuestion: {{question}}\nAnswer: "
+doc_to_text: "Question: {{question}}\nAnswer: "
 doc_to_target: "{{answer}}"
 target_delimiter: ""
 metric_list:
