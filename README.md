@@ -120,7 +120,7 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 │   ├── README.md
 │   └── *.yaml
 ├── scripts/
-├── runai/
+├── cluster/
 │   ├── spinup_workspace.sh
 │   └── submit_train.sh
 ├── docs/
@@ -146,13 +146,13 @@ uv run python scripts/plot_prefix_counts.py --hf-id meta-llama/Meta-Llama-3-8
 ### Submit training runs
 
 ```bash
-bash runai/submit_train.sh configs/ce_seed_0.yaml
-bash runai/submit_train.sh configs/label_smoothing_seed_0.yaml
-bash runai/submit_train.sh configs/prefix_simple_seed_0.yaml
-bash runai/submit_train.sh configs/prefix_norm_eps0p1_seed0.yaml
-bash runai/submit_train.sh configs/prefix_norm_eps1p0_seed0.yaml
-bash runai/submit_train.sh configs/prefix_unnorm_eps0p1_seed0.yaml
-bash runai/submit_train.sh configs/prefix_unnorm_eps1p0_seed0.yaml
+bash cluster/submit_train.sh configs/ce_seed_0.yaml
+bash cluster/submit_train.sh configs/label_smoothing_seed_0.yaml
+bash cluster/submit_train.sh configs/prefix_simple_seed_0.yaml
+bash cluster/submit_train.sh configs/prefix_norm_eps0p1_seed0.yaml
+bash cluster/submit_train.sh configs/prefix_norm_eps1p0_seed0.yaml
+bash cluster/submit_train.sh configs/prefix_unnorm_eps0p1_seed0.yaml
+bash cluster/submit_train.sh configs/prefix_unnorm_eps1p0_seed0.yaml
 ```
 
 ### Plot metrics

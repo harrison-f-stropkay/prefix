@@ -141,11 +141,11 @@ def main() -> None:
         ("lm_eval_composite", composite_rows),
         ("lm_eval_composite_smoothed", composite_smoothed),
         (
-            "charbench_exact_match",
+            "charbench_perplexity",
             [
                 r
                 for r in eval_rows
-                if r["task"].startswith("charbench") and r["metric"] == "exact_match"
+                if r["task"].startswith("charbench") and r["metric"] == "perplexity"
             ],
         ),
     ]
