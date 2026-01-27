@@ -1,40 +1,17 @@
 ## Quick Orientation
 
 - Repo overview: prefix-aware label smoothing experiments for Llama-3–style LM training (see `README.md`).
-- Reusable logic lives in `src/prefix/`; keep `scripts/` as thin entrypoints.
-- Config policy:
-  - Component configs are YAML under `configs/{data,model,train,objective,eval}/`.
-- Run configs are YAML under `configs/` (see `configs/README.md`).
-- Artifacts: keep outputs in `runs/` and datasets/artifacts in `data/` (both are gitignored). Avoid committing large binaries.
+- Reusable logic lives in `src/prefix/`; keep `scripts/` as thin entrypoints and sanity checks.
+- Artifacts: keep outputs in `runs/` and datasets in `data/` (both are gitignored).
 
 ## Dev Environment
 
-- Python: 3.12 (see `.python-version` and `pyproject.toml`).
-- Env/tooling: use `uv` (local venv in `.venv/`).
-
-Common commands:
-
-- Install/update env (dev extras): `uv sync --extra dev`
-- Run without activating venv: `uv run <command>`
-- Lint: `uv run ruff check .`
-- Tests: `uv run pytest`
+- If it's after 11pm, if we're connectd to the corporate VPN, we won't have access to the internet; if we're not connected to the corporate VPN, then we won't have access to the GPU nodes.
+- Env/tooling: use `uv run` for scripts (local venv in `.venv/`).
+- Check your work with `uvx ty check` and `uvx ruff check` if available.
 
 ## Coding Style
 
 - Prefer high-signal comments for non-obvious logic; keep them brief and purposeful.
 - "Just get it done": write minimal, direct code that meets the goal; avoid overly defensive patterns unless clearly warranted.
-- When proposing workflow changes, keep scope tight to the request; avoid adding extra features or knobs (e.g., overrides) unless explicitly asked. Prefer suggesting additional knobs as follow-on work.
-
-## Cluster (Run:ai)
-
-- Cluster helpers live under `runai/`.
-- Don’t run `runai ...` commands unless explicitly asked (they require cluster auth and submit real workloads).
-- `runai/submit_train.sh` resets the repo to `main`; run-config paths must exist in the repo checkout.
-
-## Canonical Docs
-
-- Runbook: `docs/how_to_run.md`
-- Conventions: `docs/project_conventions.md`
-- Experiments/run naming: `docs/experiments.md`
-- Resume/checkpoint contract: `docs/checkpointing.md`
-- Reference configs + data notes: `docs/reference.md`
+- When proposing workflow changes, keep scope tight to the request; avoid adding extra features or knobs (e.g., overrides) unless explicitly asked. Prefer suggesting additional knobs as follow-on work. For starters, just get it done as simply as possible.
