@@ -147,12 +147,12 @@ uv run python scripts/plot_prefix_counts.py --hf-id meta-llama/Meta-Llama-3-8
 
 ```bash
 bash cluster/submit_train.sh configs/ce_seed0_fs5.yaml
-bash cluster/submit_train.sh configs/label_smoothing_seed0_fs5.yaml
 bash cluster/submit_train.sh configs/prefix_simple_seed0_fs5.yaml
 bash cluster/submit_train.sh configs/prefix_norm_eps0p1_seed0_fs5.yaml
 bash cluster/submit_train.sh configs/prefix_norm_eps1p0_seed0_fs5.yaml
 bash cluster/submit_train.sh configs/prefix_unnorm_eps0p1_seed0_fs5.yaml
 bash cluster/submit_train.sh configs/prefix_unnorm_eps1p0_seed0_fs5.yaml
+bash cluster/submit_train.sh configs/label_smoothing_seed0_fs5.yaml
 ```
 
 ### Plot metrics

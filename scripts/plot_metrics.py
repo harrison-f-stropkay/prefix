@@ -1,4 +1,3 @@
-import argparse
 import json
 from pathlib import Path
 
@@ -10,6 +9,8 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+RUNS_DIR = REPO_ROOT / "runs"
+OUT_PATH = REPO_ROOT / "figures" / "metrics.pdf"
 COMPOSITE_TASKS = {"arc_easy", "hellaswag", "piqa", "winogrande"}
 SMOOTH_BIN_SIZE = 5
 
@@ -72,19 +73,13 @@ def build_composite(eval_rows: list[dict], metric: str) -> list[dict]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot training + eval metrics by tokens_seen.")
-    parser.add_argument("--runs-dir", type=Path, default=REPO_ROOT / "runs")
-    parser.add_argument("--out", type=Path, default=REPO_ROOT / "figures" / "metrics.png")
-    args = parser.parse_args()
-
-    runs_dir = args.runs_dir
-    if not runs_dir.exists():
-        raise SystemExit(f"Runs dir not found: {runs_dir}")
+    if not RUNS_DIR.exists():
+        raise SystemExit(f"Runs dir not found: {RUNS_DIR}")
 
     train_raw_rows: list[dict] = []
     eval_rows: list[dict] = []
 
-    for run_dir in sorted(p for p in runs_dir.iterdir() if p.is_dir()):
+    for run_dir in sorted(p for p in RUNS_DIR.iterdir() if p.is_dir()):
         metrics_path = run_dir / "metrics.jsonl"
         if not metrics_path.exists():
             continue
@@ -132,9 +127,9 @@ def main() -> None:
 
     metrics = [
         ("train_loss", smooth_rows(train_rows)),
-        ("composite_norm", smooth_rows(build_composite(eval_rows, "acc"))),
+        ("composite_acc", smooth_rows(build_composite(eval_rows, "acc"))),
         (
-            "charbench_norm",
+            "charbench_acc",
             smooth_rows(
                 [r for r in eval_rows if r["task"] == "charbench" and r["metric"] == "acc"]
             ),
@@ -183,8 +178,8 @@ def main() -> None:
         ax.axis("off")
 
     fig.tight_layout()
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(args.out, dpi=200)
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(OUT_PATH, dpi=200)
 
 
 if __name__ == "__main__":

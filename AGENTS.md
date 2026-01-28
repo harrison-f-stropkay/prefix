@@ -9,6 +9,7 @@
 - If it's after 11pm, if we're connectd to the corporate VPN, we won't have access to the internet; if we're not connected to the corporate VPN, then we won't have access to the GPU nodes.
 - Env/tooling: use `uv run` for scripts (local venv in `.venv/`).
 - Check your work with `uvx ty check` and `uvx ruff check` if available.
+- Use `runai workspace bash prefix-cpu-only` to bash into the
 
 ## Coding Style
 
