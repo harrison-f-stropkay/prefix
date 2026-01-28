@@ -1,5 +1,5 @@
 run:
-  name: label_smoothing_seed_0
+  name: label_smoothing_seed0_fs1
   seed: 0
 data:
   dataset:
@@ -58,8 +58,9 @@ eval:
       - charbench
     limit: 1000
     limit_final: 10000
-    num_fewshot: 1
+  num_fewshot: 5
   every_steps: 2000
 objective:
   type: label_smoothing
   epsilon: 0.1
+name: label_smoothing_seed0_fs5
