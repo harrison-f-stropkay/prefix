@@ -1,0 +1,13 @@
+task: hellaswag
+dataset_path: Rowan/hellaswag
+training_split: train
+validation_split: validation
+test_split: validation
+output_type: multiple_choice
+process_docs: !function hellaswag_utils.process_docs
+doc_to_text: "{{ctx}}"
+doc_to_choice: endings
+doc_to_target: gold
+target_delimiter: " "
+metadata:
+  version: 0.1

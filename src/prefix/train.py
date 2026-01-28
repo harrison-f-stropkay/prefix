@@ -119,6 +119,8 @@ def setup_run(
     dict[str, Any],
     list[str],
     int | None,
+    int | None,
+    int | None,
     int,
     int,
 ]:
@@ -138,6 +140,8 @@ def setup_run(
     lm_eval_cfg = eval_cfg.get("lm_eval") or {}
     eval_tasks = list(lm_eval_cfg.get("tasks") or [])
     eval_limit = lm_eval_cfg.get("limit")
+    eval_limit_final = lm_eval_cfg.get("limit_final")
+    eval_num_fewshot = lm_eval_cfg.get("num_fewshot")
     eval_every = int(eval_cfg.get("every_steps") or 0)
 
     run_cfg = config.get("run") or {}
@@ -154,6 +158,8 @@ def setup_run(
         objective,
         eval_tasks,
         eval_limit,
+        eval_limit_final,
+        eval_num_fewshot,
         eval_every,
         seed,
     )
@@ -162,16 +168,10 @@ def setup_run(
 def select_eval_tasks(tasks: list[str], *, charbench_variant: str) -> list[str]:
     if not tasks:
         return []
+    # CharBench now runs as a single lm-eval task; fast/slow is controlled by limit.
     if charbench_variant not in {"fast", "slow"}:
         raise ValueError(f"Unexpected charbench variant: {charbench_variant}")
-    replacement = "charbench_fast" if charbench_variant == "fast" else "charbench_slow"
-    updated: list[str] = []
-    for task in tasks:
-        if task == "charbench":
-            updated.append(replacement)
-        else:
-            updated.append(task)
-    return updated
+    return list(tasks)
 
 
 def infer_run_dir(run_config: Path, runs_root: Path) -> Path:
@@ -685,6 +685,8 @@ def main() -> None:
         objective,
         tasks,
         eval_limit,
+        eval_limit_final,
+        eval_num_fewshot,
         eval_every,
         seed,
     ) = setup_run(args.run_config, local_rank=local_rank)
@@ -844,6 +846,7 @@ def main() -> None:
                 batch_size=1,
                 device=device,
                 limit=None if eval_limit is None else int(eval_limit),
+                num_fewshot=None if eval_num_fewshot is None else int(eval_num_fewshot),
             )
             last_eval_step = step
             target.train()
@@ -887,6 +890,8 @@ def main() -> None:
             label="lm-eval",
             batch_size=1,
             device=device,
+            limit=None if eval_limit_final is None else int(eval_limit_final),
+            num_fewshot=None if eval_num_fewshot is None else int(eval_num_fewshot),
         )
     if dist.is_initialized():
         dist.barrier()

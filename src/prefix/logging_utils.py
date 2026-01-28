@@ -127,9 +127,6 @@ def log_eval_metrics(
     for task_name, task_metrics in (results.get("results") or {}).items():
         if not isinstance(task_metrics, dict):
             continue
-        if "acc_norm" in task_metrics:
-            task_metrics = dict(task_metrics)
-            task_metrics.pop("acc", None)
         for metric_name, value in task_metrics.items():
             if metric_name == "alias":
                 continue

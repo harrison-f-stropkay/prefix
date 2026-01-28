@@ -95,10 +95,10 @@ def main() -> None:
     for row in eval_rows:
         if row["task"] not in {"arc_easy", "hellaswag", "piqa", "winogrande"}:
             continue
-        if row["metric"] not in {"acc_norm", "acc"}:
+        if row["metric"] != "acc_norm":
             continue
         key = (row["model"], row["tokens_seen"], row["task"])
-        if row["metric"] == "acc_norm" or key not in task_scores:
+        if key not in task_scores:
             task_scores[key] = row["value"]
 
     composite_bins: dict[tuple[str, int], list[float]] = {}

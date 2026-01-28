@@ -1,5 +1,0 @@
-include: charbench.yaml
-task: charbench_fast
-process_docs: !function charbench_fast.process_docs
-metadata:
-  version: 0.0

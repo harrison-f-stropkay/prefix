@@ -71,6 +71,8 @@ def main() -> None:
         objective,
         eval_tasks,
         eval_limit,
+        eval_limit_final,
+        eval_num_fewshot,
         _eval_every,
         seed,
     ) = setup_run(args.run_config, local_rank=local_rank)
@@ -163,6 +165,7 @@ def main() -> None:
                 batch_size=1,
                 device=device,
                 limit=None if eval_limit is None else int(eval_limit),
+                num_fewshot=None if eval_num_fewshot is None else int(eval_num_fewshot),
             )
         target_eval.train()
 

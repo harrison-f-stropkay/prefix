@@ -95,11 +95,21 @@ For example, the distinct Unicode strings "U+212B" (the angstrom sign "Å") and 
 
 We should use a benchmark that evaluates performance on character-level tasks.
 
+- Already in `lm-eval`; let's just use `acc`:
+  - piqa
+  - winogrande
+  - arc_easy
+  - hellaswag
 - CharBench:
-  - https://github.com/omriuz/CharBench/blob/main/benchmark/benchmark.py
-  - https://huggingface.co/datasets/omriuz/CharBench
-  - Came out after fineweb-edu, so not worried about contamination
-  - Large: 175k questions
+  - Details:
+    - https://github.com/omriuz/CharBench/blob/main/benchmark/benchmark.py
+    - https://huggingface.co/datasets/omriuz/CharBench
+    - Came out after fineweb-edu, so not worried about contamination
+    - Large: 175k questions
+  - Implementation details:
+    - Every answer is in $\{0, ..., 10\}$
+    - Treat it like multiple choice with 11 options ("0"..."10") so we can use `acc`
+    - `check_charbench_answers_llama3.py` confirms each answer is a single Llama3 token
 
 ## Run:AI
 

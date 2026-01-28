@@ -1,0 +1,13 @@
+task: piqa
+dataset_path: baber/piqa
+training_split: train
+validation_split: validation
+test_split: validation
+output_type: multiple_choice
+process_docs: !function sample_utils.shuffle_docs
+doc_to_text: "{{goal}}\nAnswer:"
+doc_to_choice: "{{[sol1, sol2]}}"
+doc_to_target: label
+target_delimiter: " "
+metadata:
+  version: 0.1

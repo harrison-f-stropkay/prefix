@@ -17,3 +17,5 @@ runai workspace -p strophf1 exec prefix-cpu-only -- \
   done; \
   tar -czf - -C \"\$tmp\" .; rm -rf \"\$tmp\"" \
   | tar -xzf - -C runs
+
+uv run scripts/plot_metrics.py
