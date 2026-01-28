@@ -44,22 +44,21 @@ train:
   warmup_steps: 1000
   max_tokens: 5000000000
   adam_betas:
-    - 0.9
-    - 0.95
+  - 0.9
+  - 0.95
   adam_eps: 1.0e-08
   grad_clip: 1.0
 eval:
   lm_eval:
     tasks:
-      - piqa
-      - winogrande
-      - arc_easy
-      - hellaswag
-      - charbench
+    - piqa
+    - winogrande
+    - arc_easy
+    - hellaswag
+    - charbench
     limit: 1000
     limit_final: 10000
   num_fewshot: 1
   every_steps: 2000
 objective:
   type: cross_entropy
-name: ce_seed0_fs1

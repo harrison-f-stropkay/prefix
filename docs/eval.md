@@ -8,8 +8,8 @@ Example:
 
 ```bash
 uv run python scripts/eval.py \
-  --run-config configs/ce_seed_0.yaml \
-  --checkpoint runs/ce_seed_0/checkpoints/latest.pt
+  --run-config configs/ce_seed0_fs5.yaml \
+  --checkpoint runs/ce_seed0_fs5/checkpoints/latest.pt
 ```
 
 Notes:

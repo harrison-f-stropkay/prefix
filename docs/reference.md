@@ -2,7 +2,7 @@
 
 ## Model + Data
 
-Canonical run config: `configs/ce_seed_0.yaml`.
+Canonical run config: `configs/ce_seed0_fs1.yaml`.
 
 Dataset pipeline:
 
@@ -12,8 +12,8 @@ Dataset pipeline:
 
 Download + MDS creation:
 
-- `uv run python scripts/download_fineweb_edu.py --run-config configs/ce_seed_0.yaml`
-- `uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml`
+- `uv run python scripts/download_fineweb_edu.py --run-config configs/ce_seed0_fs1.yaml`
+- `uv run python scripts/create_mds.py --run-config configs/ce_seed0_fs1.yaml`
 
 ## Hardware
 

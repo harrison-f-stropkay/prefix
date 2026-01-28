@@ -10,7 +10,8 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-TRAIN_BIN_STEPS = 100
+COMPOSITE_TASKS = {"arc_easy", "hellaswag", "piqa", "winogrande"}
+SMOOTH_BIN_SIZE = 5
 
 
 def read_metrics(path: Path) -> list[dict]:
@@ -25,6 +26,49 @@ def read_metrics(path: Path) -> list[dict]:
             except json.JSONDecodeError:
                 continue
     return records
+
+
+def smooth_rows(rows: list[dict], bin_size: int = SMOOTH_BIN_SIZE) -> list[dict]:
+    if not rows:
+        return []
+    frame = pd.DataFrame(rows)
+    if frame.empty:
+        return []
+    frame = frame.sort_values(["model", "tokens_seen"])
+    frame["bin_id"] = frame.groupby("model").cumcount() // bin_size
+    grouped = frame.groupby(["model", "bin_id"], as_index=False).agg(
+        {"tokens_seen": "mean", "value": "mean"}
+    )
+    return grouped[["model", "tokens_seen", "value"]].to_dict("records")
+
+
+def build_composite(eval_rows: list[dict], metric: str) -> list[dict]:
+    per_task: dict[tuple[str, int, str], float] = {}
+    for row in eval_rows:
+        if row["task"] not in COMPOSITE_TASKS:
+            continue
+        if row["metric"] != metric:
+            continue
+        key = (row["model"], row["tokens_seen"], row["task"])
+        if key not in per_task:
+            per_task[key] = row["value"]
+
+    per_step: dict[tuple[str, int], list[float]] = {}
+    for (model, tokens_seen, _task), value in per_task.items():
+        per_step.setdefault((model, tokens_seen), []).append(value)
+
+    composite_rows: list[dict] = []
+    for (model, tokens_seen), values in per_step.items():
+        if len(values) != len(COMPOSITE_TASKS):
+            continue
+        composite_rows.append(
+            {
+                "model": model,
+                "tokens_seen": tokens_seen,
+                "value": sum(values) / len(values),
+            }
+        )
+    return composite_rows
 
 
 def main() -> None:
@@ -83,75 +127,29 @@ def main() -> None:
     train_rows: list[dict] = []
     if train_raw_rows:
         train_frame = pd.DataFrame(train_raw_rows)
-        train_frame["bin_id"] = (train_frame["step"] // TRAIN_BIN_STEPS).astype(int)
-        train_frame["tokens_seen"] = train_frame.groupby(["model", "bin_id"])[
-            "tokens_seen"
-        ].transform("mean")
         train_frame["value"] = train_frame["loss"]
         train_rows = train_frame[["model", "tokens_seen", "value"]].to_dict("records")
 
-    composite_rows: list[dict] = []
-    task_scores: dict[tuple[str, int, str], float] = {}
-    for row in eval_rows:
-        if row["task"] not in {"arc_easy", "hellaswag", "piqa", "winogrande"}:
-            continue
-        if row["metric"] != "acc_norm":
-            continue
-        key = (row["model"], row["tokens_seen"], row["task"])
-        if key not in task_scores:
-            task_scores[key] = row["value"]
-
-    composite_bins: dict[tuple[str, int], list[float]] = {}
-    for (model, tokens_seen, _task), value in task_scores.items():
-        composite_bins.setdefault((model, tokens_seen), []).append(value)
-    for (model, tokens_seen), values in composite_bins.items():
-        if len(values) != 4:
-            continue
-        composite_rows.append(
-            {
-                "model": model,
-                "tokens_seen": tokens_seen,
-                "metric": "lm_eval_composite",
-                "value": sum(values) / 4.0,
-            }
-        )
-
-    composite_smoothed: list[dict] = []
-    grouped: dict[str, list[dict]] = {}
-    for row in composite_rows:
-        grouped.setdefault(row["model"], []).append(row)
-    for model, rows in grouped.items():
-        rows.sort(key=lambda r: r["tokens_seen"])
-        for i in range(0, len(rows), 5):
-            chunk = rows[i : i + 5]
-            if len(chunk) < 5:
-                continue
-            avg_tokens = sum(item["tokens_seen"] for item in chunk) / 5.0
-            avg_value = sum(item["value"] for item in chunk) / 5.0
-            composite_smoothed.append(
-                {
-                    "model": model,
-                    "tokens_seen": avg_tokens,
-                    "value": avg_value,
-                }
-            )
-
     metrics = [
-        ("train_loss", train_rows),
-        ("lm_eval_composite", composite_rows),
-        ("lm_eval_composite_smoothed", composite_smoothed),
+        ("train_loss", smooth_rows(train_rows)),
+        ("composite_norm", smooth_rows(build_composite(eval_rows, "acc"))),
         (
-            "charbench_perplexity",
-            [
-                r
-                for r in eval_rows
-                if r["task"].startswith("charbench") and r["metric"] == "perplexity"
-            ],
+            "charbench_norm",
+            smooth_rows(
+                [r for r in eval_rows if r["task"] == "charbench" and r["metric"] == "acc"]
+            ),
+        ),
+        ("composite_acc_norm", smooth_rows(build_composite(eval_rows, "acc_norm"))),
+        (
+            "charbench_acc_norm",
+            smooth_rows(
+                [r for r in eval_rows if r["task"] == "charbench" and r["metric"] == "acc_norm"]
+            ),
         ),
     ]
 
     sns.set_theme(style="whitegrid")
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=False)
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8), sharex=False)
     axes = axes.flatten()
 
     for idx, (title, rows) in enumerate(metrics):
@@ -165,7 +163,7 @@ def main() -> None:
             ax.set_title(f"{title} (no data)")
             ax.axis("off")
             continue
-        errorbar = "sd" if title == "train_loss" else None
+        errorbar = None
         sns.lineplot(
             data=frame,
             x="tokens_seen",

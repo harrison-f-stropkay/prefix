@@ -10,8 +10,8 @@ from prefix.eval import evaluate_lm_harness
 from prefix.modeling import build_llama_model
 from prefix.objectives import load_tokenizer
 
-RUN_CONFIG = Path("configs/ce_seed_0.yaml")
-CHECKPOINT = Path("runs/ce_seed_0/checkpoints/latest.pt")
+RUN_CONFIG = Path("configs/ce_seed0_fs1.yaml")
+CHECKPOINT = Path("runs/ce_seed0_fs1/checkpoints/latest.pt")
 TASKS: list[str] = []
 LIMIT = 10
 BATCH_SIZE = 1

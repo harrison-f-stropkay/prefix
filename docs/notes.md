@@ -117,23 +117,23 @@ We should use a benchmark that evaluates performance on character-level tasks.
 
 ## Troubleshooting (Cluster)
 
-- SIGBUS during dry-run on `configs/ce_seed_0.yaml` was reproduced to a single-process `StreamingDataset` read on the PVC `data/mds` directory (no DDP required).
+- SIGBUS during dry-run on `configs/ce_seed0_fs1.yaml` was reproduced to a single-process `StreamingDataset` read on the PVC `data/mds` directory (no DDP required).
 - A prefix-config dry run completed successfully on the same node pool.
 - Shard sizes matched `index.json`, so corruption appears internal to a shard or storage-level; disable SHM (`NCCL_SHM_DISABLE=1 UCX_TLS=^shm`) did not avoid the crash.
-- Fastest fix: rebuild `data/mds` on the PVC (`uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml`).
+- Fastest fix: rebuild `data/mds` on the PVC (`uv run python scripts/create_mds.py --run-config configs/ce_seed0_fs1.yaml`).
 
 ## Dry run
 
 ### Submit a dry run
 
 ```bash
-bash runai/submit_train.sh --dry-run configs/ce_seed_0.yaml
+bash cluster/submit_train.sh --dry-run configs/prefix_norm_eps1p0_seed0_fs1_fs1.yaml
 ```
 
 ### Tail dry-run logs
 
 ```bash
-runai training standard logs prefix-dry-run-ce-seed-0 --tail=200 --follow
+runai training standard logs prefix-dry-run-prefix-norm-eps1p0-seed0 -p strophf1 --tail=200 --follow
 ```
 
 ### Inspect CharBench generations

@@ -27,19 +27,19 @@ Run config format: `configs/README.md`.
 
 Inspect a few batches from an MDS shard:
 
-- `uv run python scripts/spot_check_mds.py --run-config configs/ce_seed_0.yaml --num-batches 2 --decode`
+- `uv run python scripts/spot_check_mds.py --run-config configs/ce_seed0_fs1.yaml --num-batches 2 --decode`
 
 ## Dry-Run (Run:ai)
 
 Submit a dry-run via Run:ai to validate resume behavior on real data:
 
-- `runai/submit_train.sh --dry-run configs/ce_seed_0.yaml`
+- `runai/submit_train.sh --dry-run configs/ce_seed0_fs1.yaml`
 
 ## Evaluation (lm-eval-harness)
 
 Run eval on a checkpoint:
 
-- `uv run python scripts/eval.py --run-config configs/ce_seed_0.yaml --checkpoint runs/ce_seed_0/checkpoints/latest.pt`
+- `uv run python scripts/eval.py --run-config configs/ce_seed0_fs1.yaml --checkpoint runs/ce_seed0_fs1/checkpoints/latest.pt`
 
 ## Run:ai
 
@@ -53,7 +53,7 @@ Spin up a dev workspace (Jupyter, interactive debugging):
 
 Submit a training run:
 
-- `runai/submit_train.sh configs/ce_seed_0.yaml`
+- `runai/submit_train.sh configs/ce_seed0_fs1.yaml`
 
 ### Outputs + Resume
 
@@ -64,7 +64,7 @@ Submit a training run:
 
 Run an eval pass against a checkpoint:
 
-- `uv run python -m prefix.eval --run-config configs/ce_seed_0.yaml --checkpoint runs/ce_seed_0/checkpoints/latest.pt`
+- `uv run python -m prefix.eval --run-config configs/ce_seed0_fs1.yaml --checkpoint runs/ce_seed0_fs1/checkpoints/latest.pt`
 
 ### Submitting the 13 Runs
 

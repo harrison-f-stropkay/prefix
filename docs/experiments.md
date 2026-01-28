@@ -11,13 +11,13 @@ Run matrix: CE baseline + label smoothing + prefix-simple + 2 prefix-aware famil
 
 Run configs include a type + epsilon + seed. We name runs as:
 
-- `ce_seed_0`
-- `label_smoothing_seed_0`
-- `prefix_simple_seed_0`
-- `prefix_norm_eps0p1_seed0`
-- `prefix_norm_eps1p0_seed0`
-- `prefix_unnorm_eps0p1_seed0`
-- `prefix_unnorm_eps1p0_seed0`
+- `ce_seed0_fs1`
+- `label_smoothing_seed0_fs1`
+- `prefix_simple_seed0_fs1`
+- `prefix_norm_eps0p1_seed0_fs1`
+- `prefix_norm_eps1p0_seed0_fs1`
+- `prefix_unnorm_eps0p1_seed0_fs1`
+- `prefix_unnorm_eps1p0_seed0_fs1`
 
 Outputs are written to the PVC under:
 

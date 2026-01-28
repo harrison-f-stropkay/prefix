@@ -133,8 +133,8 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 ### Collate training data
 
 ```bash
-uv run python scripts/download_fineweb_edu.py --run-config configs/ce_seed_0.yaml
-uv run python scripts/create_mds.py --run-config configs/ce_seed_0.yaml
+uv run python scripts/download_fineweb_edu.py --run-config configs/ce_seed0_fs5.yaml
+uv run python scripts/create_mds.py --run-config configs/ce_seed0_fs5.yaml
 ```
 
 ### Compute info about Unicde prefixes
@@ -146,13 +146,13 @@ uv run python scripts/plot_prefix_counts.py --hf-id meta-llama/Meta-Llama-3-8
 ### Submit training runs
 
 ```bash
-bash cluster/submit_train.sh configs/ce_seed_0.yaml
-bash cluster/submit_train.sh configs/label_smoothing_seed_0.yaml
-bash cluster/submit_train.sh configs/prefix_simple_seed_0.yaml
-bash cluster/submit_train.sh configs/prefix_norm_eps0p1_seed0.yaml
-bash cluster/submit_train.sh configs/prefix_norm_eps1p0_seed0.yaml
-bash cluster/submit_train.sh configs/prefix_unnorm_eps0p1_seed0.yaml
-bash cluster/submit_train.sh configs/prefix_unnorm_eps1p0_seed0.yaml
+bash cluster/submit_train.sh configs/ce_seed0_fs5.yaml
+bash cluster/submit_train.sh configs/label_smoothing_seed0_fs5.yaml
+bash cluster/submit_train.sh configs/prefix_simple_seed0_fs5.yaml
+bash cluster/submit_train.sh configs/prefix_norm_eps0p1_seed0_fs5.yaml
+bash cluster/submit_train.sh configs/prefix_norm_eps1p0_seed0_fs5.yaml
+bash cluster/submit_train.sh configs/prefix_unnorm_eps0p1_seed0_fs5.yaml
+bash cluster/submit_train.sh configs/prefix_unnorm_eps1p0_seed0_fs5.yaml
 ```
 
 ### Plot metrics
