@@ -40,9 +40,7 @@ def configure_logging(log_path: Path | None = None) -> None:
     if log_path is not None:
         handler = logging.FileHandler(log_path)
         handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s %(levelname)s [rank=%(rank)s] %(name)s: %(message)s"
-            )
+            logging.Formatter("%(asctime)s %(levelname)s [rank=%(rank)s] %(name)s: %(message)s")
         )
         logging.getLogger().addHandler(handler)
 
@@ -78,11 +76,7 @@ def extract_eval_sample_counts(results: dict[str, Any]) -> dict[str, Any]:
     for task, metrics in (results.get("results") or {}).items():
         if not isinstance(metrics, dict):
             continue
-        raw = (
-            metrics.get("n_samples")
-            or metrics.get("num_samples")
-            or metrics.get("samples")
-        )
+        raw = metrics.get("n_samples") or metrics.get("num_samples") or metrics.get("samples")
         if raw is None:
             continue
         try:

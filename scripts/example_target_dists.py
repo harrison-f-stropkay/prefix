@@ -60,8 +60,7 @@ def main() -> None:
         if obj_type in {"prefix_simple", "prefix_softmax", "prefix_softmax_normalized"}:
             if proper_prefixes_only is None:
                 raise SystemExit(
-                    f"{run_config} is missing objective.proper_prefixes_only "
-                    "for prefix objectives."
+                    f"{run_config} is missing objective.proper_prefixes_only for prefix objectives."
                 )
             proper_prefixes_only = bool(proper_prefixes_only)
         else:

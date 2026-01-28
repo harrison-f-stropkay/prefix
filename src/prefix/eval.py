@@ -27,27 +27,19 @@ def _safe_get_task_dict(
     if isinstance(task_name_list, str):
         task_name_list = [task_name_list]
     elif isinstance(task_name_list, list):
-        if not all(
-            isinstance(task, (str, dict, lm_tasks.Task)) for task in task_name_list
-        ):
+        if not all(isinstance(task, (str, dict, lm_tasks.Task)) for task in task_name_list):
             raise TypeError(
                 "Expected list items of types 'str', 'dict', or 'Task', but at least one entry did not match."
             )
     else:
-        raise TypeError(
-            f"Expected a 'str' or 'list' but received {type(task_name_list)}."
-        )
+        raise TypeError(f"Expected a 'str' or 'list' but received {type(task_name_list)}.")
 
     string_task_name_list = [task for task in task_name_list if isinstance(task, str)]
-    others_task_name_list = [
-        task for task in task_name_list if not isinstance(task, str)
-    ]
+    others_task_name_list = [task for task in task_name_list if not isinstance(task, str)]
     if task_manager is None and (string_task_name_list or others_task_name_list):
         task_manager = lm_tasks.TaskManager()
     if string_task_name_list:
-        task_name_from_string_dict = task_manager.load_task_or_group(
-            string_task_name_list
-        )
+        task_name_from_string_dict = task_manager.load_task_or_group(string_task_name_list)
 
     for task_element in others_task_name_list:
         if isinstance(task_element, dict):
@@ -83,9 +75,7 @@ def _safe_get_task_dict(
             relative_yaml_path = yaml_path
 
         pad = "  " * indent
-        lm_tasks.eval_logger.info(
-            f"{pad}Task: {task_name} ({relative_yaml_path})"
-        )
+        lm_tasks.eval_logger.info(f"{pad}Task: {task_name} ({relative_yaml_path})")
 
     lm_tasks.eval_logger.info("Selected tasks:")
     assert task_manager is not None
@@ -103,9 +93,7 @@ def _safe_get_task_dict(
                             if isinstance(configurable_task, lm_tasks.ConfigurableTask):
                                 pretty_print_task(task_name, task_manager, indent=2)
                             else:
-                                lm_tasks.eval_logger.info(
-                                    f"{task_name}: {configurable_task}"
-                                )
+                                lm_tasks.eval_logger.info(f"{task_name}: {configurable_task}")
                 else:
                     lm_tasks.eval_logger.info(f"{key}: {value}")
             else:
