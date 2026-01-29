@@ -130,6 +130,13 @@ Intermittently during training, we evaluate models with EleutherAI’s `lm-eval-
 
 ## Reproducability
 
+### Log in to HF
+
+```
+curl -LsSf https://hf.co/cli/install.sh | bash
+hf auth login
+```
+
 ### Collate training data
 
 ```bash

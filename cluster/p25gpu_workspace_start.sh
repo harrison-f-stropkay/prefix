@@ -6,7 +6,7 @@ runai workspace submit prefix-p25gpu \
   --gpu-portion-request 0.25 \
   --cpu-core-request 64 \
   --cpu-memory-request 512G \
-  --existing-pvc claimname=prefix-data-5tib-project-ka8vj,path=/home/apluser \
+  --existing-pvc claimname=prefix-data-10tib-project-ej4an,path=/home/apluser \
   --node-pools dgx-h100-80gb \
   --node-pools dgx-h100-80gb-alt \
   --node-pools dgx-h100-80gb-alt2 \
