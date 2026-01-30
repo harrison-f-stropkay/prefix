@@ -3,7 +3,7 @@
 import math
 from typing import Any
 
-import marisa_trie
+import marisa_trie  # type: ignore[import-not-found]
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 

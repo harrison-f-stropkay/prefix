@@ -12,7 +12,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNS_DIR = REPO_ROOT / "runs"
 OUT_PATH = REPO_ROOT / "figures" / "metrics.pdf"
 COMPOSITE_TASKS = {"arc_easy", "hellaswag", "piqa", "winogrande"}
-SMOOTH_BIN_SIZE = 5
 
 
 def read_metrics(path: Path) -> list[dict]:
@@ -27,20 +26,6 @@ def read_metrics(path: Path) -> list[dict]:
             except json.JSONDecodeError:
                 continue
     return records
-
-
-def smooth_rows(rows: list[dict], bin_size: int = SMOOTH_BIN_SIZE) -> list[dict]:
-    if not rows:
-        return []
-    frame = pd.DataFrame(rows)
-    if frame.empty:
-        return []
-    frame = frame.sort_values(["model", "tokens_seen"])
-    frame["bin_id"] = frame.groupby("model").cumcount() // bin_size
-    grouped = frame.groupby(["model", "bin_id"], as_index=False).agg(
-        {"tokens_seen": "mean", "value": "mean"}
-    )
-    return grouped[["model", "tokens_seen", "value"]].to_dict("records")
 
 
 def build_composite(eval_rows: list[dict], metric: str) -> list[dict]:
@@ -126,25 +111,17 @@ def main() -> None:
         train_rows = train_frame[["model", "tokens_seen", "value"]].to_dict("records")
 
     metrics = [
-        ("train_loss", smooth_rows(train_rows)),
-        ("composite_acc", smooth_rows(build_composite(eval_rows, "acc"))),
+        ("train_loss", train_rows),
+        ("composite_acc", build_composite(eval_rows, "acc")),
         (
             "charbench_acc",
-            smooth_rows(
-                [r for r in eval_rows if r["task"] == "charbench" and r["metric"] == "acc"]
-            ),
+            [r for r in eval_rows if r["task"] == "charbench" and r["metric"] == "acc"],
         ),
-        ("composite_acc_norm", smooth_rows(build_composite(eval_rows, "acc_norm"))),
-        (
-            "charbench_acc_norm",
-            smooth_rows(
-                [r for r in eval_rows if r["task"] == "charbench" and r["metric"] == "acc_norm"]
-            ),
-        ),
+        ("composite_acc_norm", build_composite(eval_rows, "acc_norm")),
     ]
 
     sns.set_theme(style="whitegrid")
-    fig, axes = plt.subplots(2, 3, figsize=(14, 8), sharex=False)
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=False)
     axes = axes.flatten()
 
     for idx, (title, rows) in enumerate(metrics):

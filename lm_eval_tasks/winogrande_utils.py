@@ -6,7 +6,7 @@ import sys
 import datasets
 
 sys.path.append(os.path.dirname(__file__))
-from sample_utils import shuffle_docs  # noqa: E402
+from sample_utils import shuffle_docs  # type: ignore[import-not-found]  # noqa: E402
 
 
 def process_docs(docs: datasets.Dataset) -> datasets.Dataset:
