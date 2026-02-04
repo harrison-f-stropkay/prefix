@@ -61,7 +61,7 @@ train:
   lr_scheduler: cosine
   max_steps: -1
   max_tokens: 20000000000
-  per_gpu_batch_size: 8
+  per_gpu_batch_size: 6
   shuffle: true
   warmup_steps: 1000
   weight_decay: 0.1
